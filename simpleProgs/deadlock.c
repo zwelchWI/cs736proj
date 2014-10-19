@@ -12,18 +12,24 @@ void *hello1(void *arg)
 
 	for(int ndx = 0;ndx<1000;ndx++){
 		sem_wait(&S);
+    if(1){
 	pthread_t this = pthread_self();
 	struct sched_param params;
-	params.sched_priority =1;
+	params.sched_priority = (int)(rand()*25);
 	pthread_setschedparam(this, SCHED_FIFO, &params);
-nanosleep((struct timespec[]){{0, 50000}}, NULL);
+}
+		sem_wait(&Q);	
+    if(1){
+	pthread_t this = pthread_self();
+	struct sched_param params;
+	params.sched_priority = (int)(rand()*25);
+	pthread_setschedparam(this, SCHED_FIFO, &params);
+}
 		a++;
-		sem_wait(&S);	
-
-
+  		//printf("hi1 %d\n",a);
 		sem_post(&Q);
-		printf("hi1 %d\n",a);
-		sem_post(&S);	
+		sem_post(&S);
+printf("hi1 %d\n",a);	
 	}
 return NULL;
 
@@ -33,18 +39,25 @@ void *hello2(void *arg)
 {
 	for(int ndx = 0;ndx<1000;ndx++){
 		sem_wait(&Q);
+    if(1){
 	pthread_t this = pthread_self();
 	struct sched_param params;
-	params.sched_priority = 2;
+	params.sched_priority = (int)(rand()*25);
 	pthread_setschedparam(this, SCHED_FIFO, &params);
-nanosleep((struct timespec[]){{0, 50000}}, NULL);
+}
 
-		a--;
 		sem_wait(&S);
-	
+    if(1){
+	pthread_t this = pthread_self();
+	struct sched_param params;
+	params.sched_priority = (int)(rand()*25);
+	pthread_setschedparam(this, SCHED_FIFO, &params);
+}
+
+	   	a--;// printf("hi2 %d\n",a);
 		sem_post(&S);
-		printf("hi2 %d\n",a);
 		sem_post(&Q);
+ printf("hi2 %d\n",a);
 	}
 
 	return NULL;
