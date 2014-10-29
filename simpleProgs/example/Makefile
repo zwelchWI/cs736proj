@@ -1,5 +1,4 @@
 DYNINST_ROOT = /usr/local
-
 CC = g++
 CFLAGS	= -Wall
 EXECNAME= coverage
