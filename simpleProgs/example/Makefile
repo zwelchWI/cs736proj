@@ -1,5 +1,5 @@
 %DYNINST_ROOT = /p/paradyn/development/bernat/x86_64-unknown-linux2.4
-DYNINST_ROOT =  /afs/cs.wisc.edu/u/z/w/zwelch/Documents/fall14/cs736/cs736proj
+DYNINST_ROOT =  /usr/local
 
 CC = g++
 CFLAGS	= -Wall

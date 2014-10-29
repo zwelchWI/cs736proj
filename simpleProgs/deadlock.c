@@ -153,6 +153,9 @@ int main(int argc, char* argv[]) {
 
 	if(argc>2){
 		flag = 1;
+		  /* initialize random seed: */
+		  srand (atoi(argv[1]));
+
 		printf("HERE\n");
 		ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
 		if(ret < 0){
