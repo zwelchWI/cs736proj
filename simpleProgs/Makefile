@@ -13,4 +13,4 @@ sample_multithread: sample_multithread.o
 	$(CC) $(OPTS) -c $< -o $@
 
 clean:
-	rm -f deadlock.o deadlock
+	rm -f deadlock.o deadlock sample_multithread.o sample_multithread
