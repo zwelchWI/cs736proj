@@ -1,13 +1,35 @@
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <stdlib.h>
+
+#define SLEEP 30 
 int a = 0;
 sem_t  S;
 sem_t   Q;
 int flag = 0;
+//taken from pthreads man page, prints out the current priority and
+//the policy
+void print_sched_attr(){
+	int policy, rtn; 
+	struct sched_param param; 
+	
+	rtn = pthread_getschedparam(pthread_self(), &policy, &param); 
+	if(rtn != 0) perror("Unable to retrieve pthread sched param: "); 
+
+	printf("Scheduler attributes for pid %d, thread %ld, : policy: %s, priority %d\n",
+		getpid(),  
+		syscall(SYS_gettid), 
+		(policy == SCHED_FIFO)  ? "SCHED_FIFO" :
+                (policy == SCHED_RR)    ? "SCHED_RR" :
+                (policy == SCHED_OTHER) ? "SCHED_OTHER" :
+                "???",
+                param.sched_priority);
+}
+
 void *hello1(void *arg)
 {
 
@@ -21,7 +43,10 @@ pthread_t this = pthread_self();
 if(flag){
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
+		print_sched_attr(); 
+		sleep(SLEEP); 
 usleep(1);
 }
 		sem_wait(&Q);	
@@ -29,25 +54,23 @@ if(flag){
 
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:"); 
 usleep(1);
 }
                 printf("no\n");
 
 		a++;
 	
-int val;	
-  		                struct sched_param param;
-                pthread_getschedparam(this,&val,&param);
-
-                printf("MY SCHED = %d %d\n",param.sched_priority,SCHED_RR);
+		
 		printf("hi1 %d\n",a);
 		sem_post(&Q);
 if(flag){       
 
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
 }
 		sem_post(&S);
@@ -55,7 +78,8 @@ if(flag){
 
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
 }
 	}
@@ -76,36 +100,38 @@ if(flag){
 
 		fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-		pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
+		print_sched_attr(); 
+		sleep(SLEEP); 
 }
 		sem_wait(&S);
 if(flag){       
 
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
 }
                 printf("no\n");
 
-		int val;        
-		struct sched_param param;
-                pthread_getschedparam(this,&val,&param);
-                printf("MY SCHED = %d %d\n",param.sched_priority,SCHED_RR);
                 printf("hi2 %d\n",a);
 	   	//a--;// printf("hi2 %d\n",a);
 		sem_post(&S);
 if(flag){       
                 fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
 }		sem_post(&Q);
  if(flag){       
                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
                                                         rand()%sched_get_priority_max(SCHED_RR);
-                pthread_setschedparam(this,SCHED_RR,&fifo_param);
+                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
+			perror("couldn't set sched:");
 usleep(1);
 }	}
 
@@ -116,7 +142,6 @@ usleep(1);
 int main(int argc, char* argv[]) {
 	pthread_t *threads;
 	pthread_attr_t attr;
-	int i;
 	struct sched_param fifo_param;
 
         pthread_attr_t attr2;
@@ -150,10 +175,9 @@ int main(int argc, char* argv[]) {
                         return 0;
                 }
 
-
 	if(argc>2){
 		flag = 1;
-		printf("HERE\n");
+		printf("Using alternate scheduler, pid of parent: %d\n", getpid());	
 		ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
 		if(ret < 0){
 			printf("RETURN VALUE FAIL\n");
