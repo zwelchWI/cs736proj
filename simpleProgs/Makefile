@@ -6,7 +6,7 @@ EXECNAME= createInst
 
 $(EXECNAME): $(EXECNAME).o
 	$(CPP) $(EXECNAME).o -L$(DYNINST_ROOT)/lib -std=c++0x \
-	    -ldyninstAPI -ldl -ldwarf -lelf  -o $(EXECNAME)
+	    -ldyninstAPI -lsymtabAPI -ldl -ldwarf -lelf  -o $(EXECNAME)
 
 $(EXECNAME).o: ./$(EXECNAME).C
 	$(CPP) -g -c $(OPTS) -I$(DYNINST_ROOT)/include -std=c++0x $(EXECNAME).C
