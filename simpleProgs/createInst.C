@@ -41,8 +41,8 @@ BPatch_function* getFunction(const char* name)
 // 5. insert increment snippet at function entry
 void instrumentFuncs() {
     // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
-    BPatch_function *main = getFunction("pthread_create");
-    std::vector< BPatch_point * > *mainEntries = main->findPoint(BPatch_entry);
+    //BPatch_function *main = getFunction("pthread_create");
+    //std::vector< BPatch_point * > *mainEntries = main->findPoint(BPatch_entry);
     BPatch_constExpr zero(0);
     BPatch_constExpr one(1);
     for (auto iter = allFuncs.begin(); iter != allFuncs.end(); ++iter) {
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     appProc->loadLibrary("./libcreateFunc.so");
     void * b= appImage->findModule("libpthread",true);
     assert(b!=NULL);
-// gather all functions in the executable, and their names
+    // gather all functions in the executable, and their names
     getExecutableFuncs();
 
     // Identify the increment function
@@ -113,26 +113,27 @@ int main(int argc, char *argv[])
 	if(!incrementFunc)
 		printf("ACK\n");
 
-    printf("HERE\n");
-
-    Module *symtab = SymtabAPI::convert(incrementFunc->getModule());
-    if(!symtab)
-        printf("ACK\n");
-   printf("HERE\n");
+    //had to load the file again, no idea why
+    std::string file = "libcreateFunc.so";  
+    Symtab *obj = NULL;
     vector<Symbol *> syms;
-   printf("HERE\n");
-   cout<<symtab->findSymbol(syms,"orig_pthread_create",Symbol::ST_UNKNOWN,mangledName,false,false,true)<<endl;
-	SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError());
 
-cout<<syms.size()<<endl;
-   printf("HERE\n");
+    bool rtn = Symtab::openFile(obj, file); 
+    if(!rtn) printf("Problem opening file"); 
+
+    rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl; 
     
     // instrument all function entries with count snippets
-    cout << appProc->wrapFunction(main,incrementFunc,syms[0])<<endl;
-    printf("Instrumented %d functions\n", allFuncs.size());
+    rtn = appProc->wrapFunction(main,incrementFunc,syms[0]);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl; 
+    
+    cout << std::string("Instrumented ") + std::to_string(allFuncs.size()) + std::string(" functions") <<endl; 
+
     // continue execution of the mutatee
     printf("\nCalling process continue\n");
     appProc->continueExecution();
+
     // wait for mutatee to terminate 
     while (!appProc->isTerminated()) {
         bpatch.waitForStatusChange();

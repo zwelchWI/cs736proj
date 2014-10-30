@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #define SLEEP 0 
-#define NUMTHREADS 5
+#define NUMTHREADS 10
 unsigned int number[NUMTHREADS]; 
 pthread_mutex_t lock;
 
