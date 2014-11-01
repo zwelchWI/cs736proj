@@ -1,14 +1,16 @@
 #include <stdio.h>
+#include <string>
 #include "BPatch.h"
 #include "BPatch_addressSpace.h"
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
+#include "defs.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
 const bool printzero = false;
-
+extern int* prios;
 BPatch bpatch;
 BPatch_image *appImage = NULL;
 BPatch_process *appProc = NULL;
@@ -91,10 +93,104 @@ BPatch_process *startMutateeProcess(int argc, char *argv[])
     return bpatch.processCreate( argv[1] , (const char**)(argv + 1) );
 }
 
+static void show_usage(string name)
+{
+    cerr << "Usage: " << name << " <option(s)> -d SOURCES\n"
+              << "Options:\n"
+              << "\t-h,--help\t\tShow this help message\n"
+              << "\t-t,--type SCHEDULE\tSpecify the schedule policy\n"
+              << "\t-s,--size INtEGER\tNumber of threads\n"
+              << "\t-d,--dyninst SOURCES\tSpecify what to give dyninst\n"
+              << endl;
+}
+
+
+int schedule(string sched, int numThreads){
+    FILE *file = fopen("createPrios.txt","w");
+    int ret = 0;
+    if(sched == "RAND"){
+	fprintf(file,"%d\n",numThreads);
+        int ndx;
+        for(ndx = 0;ndx < numThreads;ndx++){
+	    fprintf(file,"%d\n",rand()%(sched_get_priority_max(SCHED_FIFO)-
+				sched_get_priority_min(SCHED_FIFO)));
+        }
+    }
+    else{
+        ret = -1;
+    }
+    
+    
+
+    fclose(file);
+    return ret;
+
+}
+
+
+int handleArgs(int argc,char **argv){
+    vector <string> sources;
+    string sched;
+    int size = -1;
+    bool both = false;
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if ((arg == "-h") || (arg == "--help")) {
+            show_usage(argv[0]);
+            exit( 1);
+        } else if ((arg == "-t") || (arg == "--type")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                sched = argv[++i]; // Increment 'i' so we don't get the argument as the next argv[i].
+		cout <<"SCHEDULE "<<sched<<endl;
+                if(both){	
+	            if(schedule(sched,size) < 0){
+		        cerr << "ERROR: INVALID SCHEDULE" << endl;
+		        show_usage(argv[0]);
+   		    } 
+
+                }
+		else{
+                    both=true;
+                }  
+	    }else { // Uh-oh, there was no argument to the destination option.
+                cerr << "--type option requires one argument." << endl;
+                 exit(1);
+            }
+        }else if ((arg == "-s") || (arg == "--size")) {
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                size = atoi(argv[++i]); // Increment 'i' so we don't get the argument as the next argv[i].
+		cout <<size<< " THREADS"<<endl;
+                if(both){
+                    
+                    if(schedule(sched,size) < 0){
+                        cerr << "ERROR: INVALID SCHEDULE" << endl;
+                        show_usage(argv[0]);
+                    }
+                } 
+                else{
+                    both=true;
+                }
+            }else { // Uh-oh, there was no argument to the destination option.
+                cerr << "--size option requires one argument." << endl;
+                exit( 1);
+            }
+	}else if ((arg == "-d") || (arg == "--dyninst")) {
+            appProc = startMutateeProcess(argc-i,argv+i);
+            return 0;
+	}else {
+            sources.push_back(argv[i]);
+        }
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
     // process control
-    appProc = startMutateeProcess(argc,argv);
+
+
+    handleArgs(argc,argv);
+
     appImage = appProc->getImage();
 
     // Load the tool library
@@ -103,6 +199,7 @@ int main(int argc, char *argv[])
     assert(b!=NULL);
     // gather all functions in the executable, and their names
     getExecutableFuncs();
+
 
     // Identify the increment function
     BPatch_function *main = getFunction("pthread_create");
