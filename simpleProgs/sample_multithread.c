@@ -6,6 +6,7 @@
 #include <semaphore.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <linux/sched.h>
 #define SLEEP 0 
 #define NUMTHREADS 10
 unsigned int number[NUMTHREADS]; 
@@ -17,7 +18,6 @@ pthread_mutex_t lock;
 void print_sched_attr(){
 	int policy, rtn; 
 	struct sched_param param; 
-	
 	rtn = pthread_getschedparam(pthread_self(), &policy, &param); 
 	if(rtn != 0) perror("Unable to retrieve pthread sched param: "); 
 
@@ -57,6 +57,9 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 */
+
+
+
 	pthread_t threads[NUMTHREADS]; 
 	pthread_attr_t attr[NUMTHREADS];
 	int i;

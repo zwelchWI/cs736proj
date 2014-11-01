@@ -33,9 +33,5 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
 	int val=orig_pthread_create(thread,attr,start_routine,arg);
-struct sched_param param2;
-param2.sched_priority = 12;
-sched_setscheduler(getpid(), SCHED_RR,
-                             &param2);
-return val;
+	return val;
 }
