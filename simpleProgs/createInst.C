@@ -112,8 +112,24 @@ int schedule(string sched, int numThreads){
 	fprintf(file,"%d\n",numThreads);
         int ndx;
         for(ndx = 0;ndx < numThreads;ndx++){
-	    fprintf(file,"%d\n",rand()%(sched_get_priority_max(SCHED_FIFO)-
-				sched_get_priority_min(SCHED_FIFO)));
+	    fprintf(file,"%d\n",rand()%(sched_get_priority_max(SCHED_RR)-
+				sched_get_priority_min(SCHED_RR)));
+        }
+    }
+    else if(sched == "EQUAL"){
+        fprintf(file,"%d\n",numThreads);
+        int ndx;
+        for(ndx = 0;ndx < numThreads;ndx++){
+            fprintf(file,"%d\n",sched_get_priority_min(SCHED_RR));
+        }
+    }
+    else if(sched == "REVERSE"){
+        fprintf(file,"%d\n",numThreads);
+        int ndx;
+        for(ndx = 0;ndx < numThreads;ndx++){
+	    int val = (sched_get_priority_min(SCHED_RR)+numThreads-(ndx+1));
+            val = val > sched_get_priority_min(SCHED_RR)?val:sched_get_priority_min(SCHED_RR);
+            fprintf(file,"%d\n",val);
         }
     }
     else{

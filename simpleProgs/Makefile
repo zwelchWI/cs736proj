@@ -20,6 +20,10 @@ all: deadlock sample_multithread $(EXECNAME)
 deadlock: deadlock.o
 	$(CC) -o deadlock deadlock.o -pthread
 
+segFault: segFault.o
+	$(CC) -o segFault segFault.o -pthread
+
+
 sample_multithread: sample_multithread.o
 	$(CC) -o sample_multithread sample_multithread.o -pthread
 
