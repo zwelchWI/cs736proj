@@ -1,7 +1,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
-#define SCHED SCHED_FIFO
+#define SCHED SCHED_RR
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
                        
@@ -39,5 +39,6 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	pthread_attr_setschedparam(attr, &param);
 	fprintf(logFile, "about to call original pthread create\n"); 
 	fflush(logFile); 
-	return orig_pthread_create(thread,attr,start_routine,arg);
+	int val=orig_pthread_create(thread,attr,start_routine,arg);
+	return val;
 }

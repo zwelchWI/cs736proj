@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <stdlib.h>
-int *a;
+int *a = NULL;
 void *hello1(void *arg)
 {
 	a = malloc(sizeof(int));

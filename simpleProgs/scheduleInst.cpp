@@ -5,21 +5,14 @@
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
+#include "defs.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
-const bool printzero = false;
-extern int* prios;
 BPatch bpatch;
 BPatch_image *appImage = NULL;
 BPatch_process *appProc = NULL;
-BPatch_function *incrementFunc = NULL;
-struct funcStruct {
-   BPatch_function *func;
-   BPatch_variableExpr *counter;
-   funcStruct(BPatch_function *f) : func(f), counter(NULL) {};
-};
-vector<funcStruct> allFuncs;
+vector<string> options;
 
 
 /* returns the first function to match a particular name */
@@ -35,51 +28,6 @@ BPatch_function* getFunction(const char* name)
 }
 
 
-// 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
-/* FOREACH function: */
-// 3. allocate counter variable
-// 4. insert counter variable initialization at main entry point
-// 5. insert increment snippet at function entry
-void instrumentFuncs() {
-    // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
-    //BPatch_function *main = getFunction("pthread_create");
-    //std::vector< BPatch_point * > *mainEntries = main->findPoint(BPatch_entry);
-    BPatch_constExpr zero(0);
-    BPatch_constExpr one(1);
-    for (auto iter = allFuncs.begin(); iter != allFuncs.end(); ++iter) {
-       // 2. allocate func counter variable
-       iter->counter = appProc->malloc( *(appImage->findType("long")) );
-       assert(iter->counter);
-
-       // 3. initialize counter variable
-       long initial = 0;
-       iter->counter->writeValue(&initial);
-
-       // 4. insert increment snippet at function entry
-       vector<BPatch_snippet *> increment_args;
-       BPatch_constExpr var_addr(iter->counter->getBaseAddr());
-       increment_args.push_back(&var_addr);
-       increment_args.push_back(&one);
-       BPatch_funcCallExpr increment(*incrementFunc, increment_args);
-       BPatch_Vector<BPatch_point*> * entryPoints = iter->func->findPoint(BPatch_entry);
-       appProc->insertSnippet(increment, *entryPoints);
-    }
-
-}
-
-void getExecutableFuncs ()
-{
- 	BPatch_module * b= appImage->findModule("libpthread",true);
-	vector<BPatch_function *> *funcs = b->getProcedures();
-       	char hold[15];
-	for (auto iter = funcs->begin(); iter != funcs->end(); ++iter) {
-			string h((*iter)->getName(hold,14),14);
-			if(h == string("pthread_create")){
-           allFuncs.push_back(funcStruct(*iter));
-           cerr << "Instrumenting function " << (*iter)->getName() << endl;
-}
-	}
-}
 
 BPatch_process *startMutateeProcess(int argc, char *argv[])
 {
@@ -100,6 +48,16 @@ static void show_usage(string name)
               << "\t-t,--type SCHEDULE\tSpecify the schedule policy\n"
               << "\t-s,--size INtEGER\tNumber of threads\n"
               << "\t-d,--dyninst SOURCES\tSpecify what to give dyninst\n"
+              << "\t-i,--instrument INSTS\tComma separated list of operations to instrument\n"
+              << "\t-r --rNum INT\t random number seed\n"
+    <<"\n\nSOURCES\n"
+	     <<"\tRAND    - random weights\n"
+             <<"\tEQUAL   - equal weights\n"
+             <<"\tREVERSE - Earlier threads have higher priority\n"
+    <<"\n\nINSTS example: create,dMem,sync\n"
+             <<"\tcreate  - instrument pthread_create\n"
+             <<"\tsync    - instrument pthread syncronization\n"
+             <<"\tdMem    - instrument dynamic memory allocations and accesses\n"
               << endl;
 }
 
@@ -133,15 +91,10 @@ int schedule(string sched, int numThreads){
     }
     else{
         ret = -1;
-    }
-    
-    
-
+    }  
     fclose(file);
     return ret;
-
 }
-
 
 int handleArgs(int argc,char **argv){
     vector <string> sources;
@@ -162,7 +115,6 @@ int handleArgs(int argc,char **argv){
 		        cerr << "ERROR: INVALID SCHEDULE" << endl;
 		        show_usage(argv[0]);
    		    } 
-
                 }
 		else{
                     both=true;
@@ -192,63 +144,93 @@ int handleArgs(int argc,char **argv){
 	}else if ((arg == "-d") || (arg == "--dyninst")) {
             appProc = startMutateeProcess(argc-i,argv+i);
             return 0;
-	}else if ((arg == "-a") || (arg == "--attach")) {
-		//don't need path as linux does this I guess..
-		//char *path = argv[++i]; 
-		int pid = atoi(argv[++i]);
-		appProc = bpatch.processAttach(NULL, pid);
-		return 0;
-	}else {
+	} else if((arg == "-i")||(arg == "--instrument")){
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                string hold = argv[++i];
+                replace( hold.begin(), hold.end(), ',', ' ');
+    		string buf = ""; // Have a buffer string
+    		stringstream ss(hold); // Insert the string into a stream
+
+    		while (ss >> buf){
+		    cout <<"Found option "<<buf<<endl;
+        	    options.push_back(buf);
+                }
+           }
+        }else if((arg == "-r")||(arg == "--rNum")){
+           srand(atoi(argv[++i]));
+        }else {
             sources.push_back(argv[i]);
-        }
-    }
-  return 1;
+        
+      }
+}
+return 0;
 }
 
 
-int main(int argc, char *argv[])
-{
-    // process control
 
+void createInst(){
+    BPatch_function *origCreate = getFunction("pthread_create");
+    if(!origCreate)
+        printf("ACK\n");
+
+    BPatch_function *newCreate = getFunction("my_pthread_create");
+    if(!newCreate)
+        printf("ACK\n");
+
+    //had to load the file again, no idea why
+    string createFile = "libcreateFunc.so";
+    Symtab *obj = NULL;
+    vector<Symbol *> syms;
+
+    bool rtn = Symtab::openFile(obj, createFile);
+    if(!rtn) printf("Problem opening file");
+
+    rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+
+    // instrument all function entries with count snippets
+    rtn = appProc->wrapFunction(origCreate,newCreate,syms[0]);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+
+}
+
+void syncInst(){
+}
+
+void memInst(){
+
+}
+
+void instrument(){
+     for (vector<string>::iterator it = options.begin();it != options.end(); it++){
+         cout << *it;
+         if(*it == "create"){
+             createInst();
+	 }
+         else if(*it == "sync"){
+             syncInst();
+         }
+         else if(*it == "dMem"){
+	     memInst();
+         }
+         else{
+             cerr <<"Invalid instrumentation type "<<*it<<endl;
+             exit(1);
+         }
+    }
+}
+
+int main(int argc, char *argv[]){
+    // process control
 
     handleArgs(argc,argv);
 
     appImage = appProc->getImage();
 
     // Load the tool library
-    //appProc->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so");
     appProc->loadLibrary("./libcreateFunc.so");
-    void * b= appImage->findModule("libpthread",true);
-    assert(b!=NULL);
-    // gather all functions in the executable, and their names
-    getExecutableFuncs();
 
-
-    // Identify the increment function
-    BPatch_function *main = getFunction("pthread_create");
-      if(!main)
-                printf("ACK\n");
-
-    incrementFunc = getFunction("my_pthread_create");
-	if(!incrementFunc)
-		printf("ACK\n");
-
-    //had to load the file again, no idea why
-    std::string file = "libcreateFunc.so";  
-    Symtab *obj = NULL;
-    vector<Symbol *> syms;
-
-    bool rtn = Symtab::openFile(obj, file); 
-    if(!rtn) printf("Problem opening file"); 
-
-    rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
-    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl; 
-    
-    // instrument all function entries with count snippets
-    rtn = appProc->wrapFunction(main,incrementFunc,syms[0]);
-    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl; 
-    
-    cout << std::string("Instrumented ") + std::to_string(allFuncs.size()) + std::string(" functions") <<endl; 
+    instrument();
 
     // continue execution of the mutatee
     printf("\nCalling process continue\n");
