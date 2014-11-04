@@ -5,7 +5,6 @@
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
-#include "defs.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
@@ -177,10 +176,17 @@ int handleArgs(int argc,char **argv){
 	}else if ((arg == "-d") || (arg == "--dyninst")) {
             appProc = startMutateeProcess(argc-i,argv+i);
             return 0;
+	}else if ((arg == "-a") || (arg == "--attach")) {
+		//don't need path as linux does this I guess..
+		//char *path = argv[++i]; 
+		int pid = atoi(argv[++i]);
+		appProc = bpatch.processAttach(NULL, pid);
+		return 0;
 	}else {
             sources.push_back(argv[i]);
         }
     }
+  return 1;
 }
 
 
@@ -194,6 +200,7 @@ int main(int argc, char *argv[])
     appImage = appProc->getImage();
 
     // Load the tool library
+    //appProc->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so");
     appProc->loadLibrary("./libcreateFunc.so");
     void * b= appImage->findModule("libpthread",true);
     assert(b!=NULL);

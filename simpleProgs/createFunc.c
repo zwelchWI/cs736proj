@@ -12,6 +12,11 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	static FILE *pFile = NULL;
 	static int numThreads = 0;
 	static int* prios= NULL;
+	static FILE *logFile = NULL;
+
+	if(logFile == NULL){
+		logFile = fopen("/tmp/threadLog.txt", "a");
+	}
       	if(prios == NULL){
 		pFile = fopen("createPrios.txt","r");
 		fscanf(pFile, "%d\n",&numThreads);
@@ -32,5 +37,7 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
+	fprintf(logFile, "about to call original pthread create\n"); 
+	fflush(logFile); 
 	return orig_pthread_create(thread,attr,start_routine,arg);
 }

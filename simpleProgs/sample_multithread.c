@@ -14,14 +14,15 @@ pthread_mutex_t lock;
 //taken from pthreads man page, prints out the current priority and
 //the policy
 
-void print_sched_attr(){
+void print_sched_attr(int num){
 	int policy, rtn; 
 	struct sched_param param; 
 	
 	rtn = pthread_getschedparam(pthread_self(), &policy, &param); 
 	if(rtn != 0) perror("Unable to retrieve pthread sched param: "); 
 
-	printf("Scheduler attributes for pid %d, thread %ld, : policy: %s, priority %d\n",
+	printf("Scheduler attributes for [%d]:pid %d, thread %ld, policy: %s, priority: %d\n",
+		num,
 		getpid(),  
 		syscall(SYS_gettid), 
 		(policy == SCHED_FIFO)  ? "SCHED_FIFO" :
@@ -34,9 +35,8 @@ void print_sched_attr(){
 void *func1(void *arg)
 {
 	int val = *((int *) arg); 
-	print_sched_attr(); 
-
 	printf("Thread start: number %d\n", val); 
+	print_sched_attr(val); 
 	
 	unsigned int i;
 	for(i = 0; i < UINT_MAX; i++){
