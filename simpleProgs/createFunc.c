@@ -43,6 +43,21 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	return val;
 }
 
+
+void randPrio(){
+	pthread_t this = pthread_self();
+  	struct sched_param fifo_param;
+	
+         fifo_param.sched_priority =sched_get_priority_min(SCHED)+
+                                    rand()%sched_get_priority_max(SCHED);
+         if(pthread_setschedparam(this,SCHED,&fifo_param) != 0)
+			perror("couldn't set sched:");
+	print_sched_attr(); 
+	usleep(1);
+}
+
+
+
 pid_t orig_fork(); 
 
 pid_t my_fork(){

@@ -57,7 +57,8 @@ static void show_usage(string name)
              <<"\tcreate  - instrument pthread_create\n"
              <<"\tsync    - instrument pthread syncronization\n"
              <<"\tdMem    - instrument dynamic memory allocations and accesses\n"
-              << endl;
+             <<"\tfork    - instrument dynamic memory allocations and accesses\n"
+ << endl;
 }
 
 
@@ -220,7 +221,32 @@ void forkInst(){
 }
 
 void syncInst(){
+    vector<string> syncFuncs;
+    syncFuncs.push_back("sem_wait");
+    syncFuncs.push_back("sem_post");
+    syncFuncs.push_back("pthread_mutex_unlock");
+    syncFuncs.push_back("pthread_mutex_lock");
+    syncFuncs.push_back("pthread_rdwr_init_np");	
+    syncFuncs.push_back("pthread_rdwr_rlock_np");	
+    syncFuncs.push_back("pthread_rdwr_wlock_np");	
+    syncFuncs.push_back("pthread_rdwr_runlock_np");	
+    syncFuncs.push_back("pthread_rdwr_wunlock_np");
+    syncFuncs.push_back("sem_wait");
+    syncFuncs.push_back("sem_post");
+    BPatch_function *inst = getFunction("randPrio");
+
+       // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
+    for (auto iter = syncFuncs.begin(); iter != syncFuncs.end(); ++iter) {
+       // 4. insert increment snippet at function entry
+       BPatch_function *syncFunc = getFunction((*iter).c_str());
+       vector<BPatch_snippet *> args;
+       BPatch_funcCallExpr syncF(*inst, args);
+       BPatch_Vector<BPatch_point*> * entryPoints = syncFunc->findPoint(BPatch_exit);
+       appProc->insertSnippet(syncF, *entryPoints);
+    }
+
 }
+
 
 void memInst(){
 
@@ -252,10 +278,10 @@ int main(int argc, char *argv[]){
     // process control
 
     handleArgs(argc,argv);
-
     appImage = appProc->getImage();
 
     // Load the tool library
+
     appProc->loadLibrary("./libcreateFunc.so");
 
     instrument();
