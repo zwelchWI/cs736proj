@@ -5,6 +5,8 @@ DYNINST_ROOT = /usr/local
 CPP = g++
 EXECNAME= scheduleInst
 
+all: deadlock sample_multithread segFault $(EXECNAME) libcreateFunc.so
+
 $(EXECNAME): $(EXECNAME).o
 	$(CPP) $(EXECNAME).o -L$(DYNINST_ROOT)/lib -std=c++0x \
 	    -ldyninstAPI -lsymtabAPI -ldl -ldwarf -lelf  -o $(EXECNAME)
@@ -15,7 +17,6 @@ $(EXECNAME).o: ./$(EXECNAME).cpp
 libcreateFunc.so: createFunc.c
 	gcc -o libcreateFunc.so -shared createFunc.c -lpthread -fPIC $(OPTS)
 
-all: deadlock sample_multithread $(EXECNAME)
 
 deadlock: deadlock.o
 	$(CC) -o deadlock deadlock.o -pthread
@@ -31,4 +32,4 @@ sample_multithread: sample_multithread.o
 	$(CC) $(COPTS) -c $< -o $@
 
 clean:
-	rm -f deadlock.o deadlock sample_multithread.o sample_multithread $(EXECNAME).o $(EXECNAME)
+	rm -f deadlock.o deadlock sample_multithread.o sample_multithread $(EXECNAME).o $(EXECNAME) libcreateFunc.so segfault.o segfault 
