@@ -5,7 +5,6 @@
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
-#include "defs.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
@@ -194,6 +193,32 @@ void createInst(){
 
 }
 
+void forkInst(){
+    BPatch_function *origCreate = getFunction("fork");
+    if(!origCreate)
+        printf("ACK\n");
+
+    BPatch_function *newCreate = getFunction("my_fork");
+    if(!newCreate)
+        printf("ACK\n");
+
+    //had to load the file again, no idea why
+    string createFile = "libcreateFunc.so";
+    Symtab *obj = NULL;
+    vector<Symbol *> syms;
+
+    bool rtn = Symtab::openFile(obj, createFile);
+    if(!rtn) printf("Problem opening file");
+
+    rtn = obj->findSymbol(syms, "orig_fork", Symbol::ST_UNKNOWN,mangledName, false, false, true);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+
+    // instrument all function entries with count snippets
+    rtn = appProc->wrapFunction(origCreate,newCreate,syms[0]);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+
+}
+
 void syncInst(){
 }
 
@@ -213,6 +238,9 @@ void instrument(){
          else if(*it == "dMem"){
 	     memInst();
          }
+	 else if(*it == "fork"){
+	     forkInst(); 
+	 }
          else{
              cerr <<"Invalid instrumentation type "<<*it<<endl;
              exit(1);
