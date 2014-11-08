@@ -36,52 +36,13 @@ void *hello1(void *arg)
 	for(int ndx = 0;ndx<10000;ndx++){
 		sem_wait(&S);
 
-
-pthread_t this = pthread_self();
-  struct sched_param fifo_param;
-
-if(flag){
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
 		print_sched_attr(); 
-		sleep(SLEEP); 
-usleep(1);
-}
 		sem_wait(&Q);	
-if(flag){       
-
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:"); 
-usleep(1);
-}
-                printf("no\n");
 
 		a++;
-	
-		
-		printf("hi1 %d\n",a);
 		sem_post(&Q);
-if(flag){       
-
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-}
 		sem_post(&S);
-if(flag){       
 
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-}
 	}
 return NULL;
 
@@ -92,48 +53,11 @@ void *hello2(void *arg)
 
 	for(int ndx = 0;ndx<10000;ndx++){
 		sem_wait(&Q);
- struct sched_param fifo_param;// = pthread_self();
-
-		pthread_t this = pthread_self();
-if(flag){       
-
-
-		fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-		print_sched_attr(); 
-		sleep(SLEEP); 
-}
 		sem_wait(&S);
-if(flag){       
-
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-}
-                printf("no\n");
-
-                printf("hi2 %d\n",a);
-	   	//a--;// printf("hi2 %d\n",a);
+		a--;
 		sem_post(&S);
-if(flag){       
-                fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-}		sem_post(&Q);
- if(flag){       
-               fifo_param.sched_priority =sched_get_priority_min(SCHED_RR)+
-                                                        rand()%sched_get_priority_max(SCHED_RR);
-                if(pthread_setschedparam(this,SCHED_RR,&fifo_param) != 0)
-			perror("couldn't set sched:");
-usleep(1);
-}	}
+		sem_post(&Q);
+	}
 
 	return NULL;
 }

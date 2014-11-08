@@ -37,8 +37,11 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
-	fprintf(logFile, "about to call original pthread create\n"); 
-	fflush(logFile); 
+        if(logFile){
+		fprintf(logFile, "about to call original pthread create with %d prio on fn %p\n",
+				param.sched_priority,start_routine);
+		fflush(logFile);
+	} 
 	int val=orig_pthread_create(thread,attr,start_routine,arg);
 	return val;
 }
@@ -52,7 +55,6 @@ void randPrio(){
                                     rand()%sched_get_priority_max(SCHED);
          if(pthread_setschedparam(this,SCHED,&fifo_param) != 0)
 			perror("couldn't set sched:");
-	print_sched_attr(); 
 	usleep(1);
 }
 

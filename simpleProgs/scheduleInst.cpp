@@ -226,11 +226,6 @@ void syncInst(){
     syncFuncs.push_back("sem_post");
     syncFuncs.push_back("pthread_mutex_unlock");
     syncFuncs.push_back("pthread_mutex_lock");
-    syncFuncs.push_back("pthread_rdwr_init_np");	
-    syncFuncs.push_back("pthread_rdwr_rlock_np");	
-    syncFuncs.push_back("pthread_rdwr_wlock_np");	
-    syncFuncs.push_back("pthread_rdwr_runlock_np");	
-    syncFuncs.push_back("pthread_rdwr_wunlock_np");
     syncFuncs.push_back("sem_wait");
     syncFuncs.push_back("sem_post");
     BPatch_function *inst = getFunction("randPrio");
@@ -254,7 +249,7 @@ void memInst(){
 
 void instrument(){
      for (vector<string>::iterator it = options.begin();it != options.end(); it++){
-         cout << *it;
+         cout << *it<<endl;
          if(*it == "create"){
              createInst();
 	 }
