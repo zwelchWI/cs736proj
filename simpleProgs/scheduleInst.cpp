@@ -11,6 +11,10 @@ using namespace SymtabAPI;
 BPatch bpatch;
 BPatch_image *appImage = NULL;
 BPatch_process *appProc = NULL;
+BPatch_function *traceEntryFunc;
+BPatch_function *traceExitFunc;
+BPatch_type *intType;
+   
 vector<string> options;
 
 
@@ -269,6 +273,183 @@ void instrument(){
     }
 }
 
+
+
+//ALTERED FROM http://www.paradyn.org/tracetool.html#Download
+enum arg_type { tr_unknown = 0, tr_int = 1 };
+
+// End the sequence with a NULL
+// should_instrument_module is expecting these to all be in lowercase
+char *excluded_modules[] = {
+   "default_module", "libstdc++", "libm", "libc", "ld-linux",
+   "libdyninstapi_rt", "libdl", "tracelib", "kernel", ".so.",
+   "global_linkage", // AIX modules
+   NULL
+};
+
+void mystrlwr(char *str) {
+   for(char *c=str; (*c)!=0; c++) {
+      *c = tolower(*c);
+   }
+}
+
+bool should_instrument_module(char *mod_input) {
+   int i=0;
+   char modname[100];
+   strcpy(modname, mod_input);
+   mystrlwr(modname);
+   while(i<1000) {
+      char *cur_mod = excluded_modules[i];
+      if(cur_mod == NULL) break;
+      if(strstr(modname, cur_mod)){
+          return false;
+      }
+      i++;
+   }
+   return true;
+}
+
+void instrument_entry(BPatch_function *func, char *funcname) {
+   BPatch_Vector<BPatch_localVar *> *params = func->getParams();
+   int num_args = (*params).size();
+   enum arg_type argOneType = tr_unknown;
+   
+   if(num_args>0) {
+      BPatch_localVar *firstParam = (*params)[0];
+      BPatch_type *first_arg_type = firstParam->getType();
+      if(first_arg_type && first_arg_type->getID() == intType->getID())
+         argOneType = tr_int;
+   }
+   
+   BPatch_Vector<BPatch_snippet *> traceFuncArgs;
+   BPatch_constExpr funcName(funcname);
+   BPatch_constExpr descArg("...desc...");
+   BPatch_constExpr numFuncArgs(num_args);
+   BPatch_paramExpr argOne(0);
+   BPatch_constExpr nullArgOne((const void *)NULL);
+   BPatch_constExpr argType(argOneType);
+
+   traceFuncArgs.push_back(&funcName);
+   traceFuncArgs.push_back(&descArg);
+   traceFuncArgs.push_back(&numFuncArgs);
+   if(num_args > 0)
+      traceFuncArgs.push_back(&argOne);
+   else
+      traceFuncArgs.push_back(&nullArgOne);
+   traceFuncArgs.push_back(&argType);
+
+   BPatch_Vector<BPatch_point *> *entryPointBuf = 
+      func->findPoint(BPatch_entry);
+   if((*entryPointBuf).size() != 1) {
+      cerr << "couldn't find entry point for func " << funcname << endl;
+      exit(1);
+   }
+   BPatch_point *entryPoint = (*entryPointBuf)[0];
+
+   BPatch_funcCallExpr traceEntryCall(*traceEntryFunc, traceFuncArgs);
+   appProc->insertSnippet(traceEntryCall, *entryPoint, BPatch_callBefore,
+                            BPatch_firstSnippet);
+}
+
+void instrument_exit(BPatch_function *func, char *funcname) {
+   cerr << "calling instrument_exit\n";
+   BPatch_type *retType = func->getReturnType();
+
+   enum arg_type argOneType = tr_unknown;
+   if(retType && retType->getID() == intType->getID())
+      argOneType = tr_int;
+   
+   BPatch_Vector<BPatch_snippet *> traceFuncArgs;
+   BPatch_constExpr funcName(funcname);
+   BPatch_constExpr descArg("...desc...");
+   BPatch_retExpr   retVal;
+   BPatch_constExpr retValType(argOneType);
+
+   traceFuncArgs.push_back(&funcName);
+   traceFuncArgs.push_back(&descArg);
+   traceFuncArgs.push_back(&retVal);
+   traceFuncArgs.push_back(&retValType);
+
+   BPatch_Vector<BPatch_point *> *exitPointBuf = func->findPoint(BPatch_exit);
+
+   // dyninst might not be able to find exit point
+   if((*exitPointBuf).size() == 0) {
+      cerr << "   couldn't find exit point, so returning\n";
+      return;
+   }
+
+   for(int i=0; i<(*exitPointBuf).size(); i++) {
+      cerr <<"   inserting an exit pt instrumentation\n";
+      BPatch_point *curExitPt = (*exitPointBuf)[i];
+
+      BPatch_funcCallExpr traceExitCall(*traceExitFunc, traceFuncArgs);
+      appProc->insertSnippet(traceExitCall, *curExitPt, BPatch_callAfter,
+                               BPatch_firstSnippet);
+   }
+}
+
+
+void instrument_funcs_in_module(BPatch_module *mod) {
+   BPatch_Vector<BPatch_function *> *allprocs = mod->getProcedures();
+
+   char name[100];
+   unsigned int i=0;
+   for( i=0; i<(*allprocs).size(); i++) {
+      BPatch_function *func = (*allprocs)[i];
+      func->getName(name, 99);
+      if(strstr(name,"__"))continue;
+
+      cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
+      instrument_entry(func, name);
+      instrument_exit(func, name);
+   }
+    vector<string> syncFuncs;
+    syncFuncs.push_back("sem_wait");
+    syncFuncs.push_back("sem_post");
+    syncFuncs.push_back("pthread_mutex_unlock");
+    syncFuncs.push_back("pthread_mutex_lock");
+    syncFuncs.push_back("sem_wait");
+    syncFuncs.push_back("sem_post");
+    syncFuncs.push_back("pthread_create");
+    syncFuncs.push_back("pthread_spin_lock");
+    syncFuncs.push_back("pthread_spin_unlock");
+
+       // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
+    for (auto iter = syncFuncs.begin(); iter != syncFuncs.end(); ++iter) {
+       // 4. insert increment snippet at function entry
+       BPatch_function *syncFunc = getFunction((*iter).c_str());
+      syncFunc->getName(name, 99);
+      if(strstr(name,"__"))continue;
+
+      cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
+      i++;
+      instrument_entry(syncFunc, name);
+      instrument_exit(syncFunc, name);
+   }
+}
+
+void initTracing(){
+   traceEntryFunc = getFunction("trace_entry_func");
+   traceExitFunc = getFunction("trace_exit_func");
+   intType = appImage->findType("int");
+
+   const BPatch_Vector<BPatch_module *> *mbuf = appImage->getModules();
+
+   for(unsigned n=0; n<(*mbuf).size(); n++) {
+      BPatch_module *mod = (*mbuf)[n];
+      char modname[100];
+      mod->getName(modname, 99);
+      cout << "Program Module " << modname << " ------------------" << endl;
+      if(should_instrument_module(modname)) {
+         instrument_funcs_in_module(mod);
+      }
+   }
+}
+
+
+
+
+
 int main(int argc, char *argv[]){
     // process control
 
@@ -278,6 +459,9 @@ int main(int argc, char *argv[]){
     // Load the tool library
 
     appProc->loadLibrary("./libcreateFunc.so");
+
+
+    initTracing();
 
     instrument();
 
