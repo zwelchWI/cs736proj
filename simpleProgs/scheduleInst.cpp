@@ -143,6 +143,12 @@ int handleArgs(int argc,char **argv){
 	}else if ((arg == "-d") || (arg == "--dyninst")) {
             appProc = startMutateeProcess(argc-i,argv+i);
             return 0;
+	}else if ((arg == "-a") || (arg == "--attach")) {
+		//don't need path as linux does this I guess..
+		//char *path = argv[++i]; 
+		int pid = atoi(argv[++i]);
+		appProc = bpatch.processAttach(NULL, pid);
+		return 0;
 	} else if((arg == "-i")||(arg == "--instrument")){
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
                 string hold = argv[++i];
@@ -257,7 +263,9 @@ int main(int argc, char *argv[]){
 
     // Load the tool library
     appProc->loadLibrary("./libcreateFunc.so");
-
+    
+    //for running as root
+    //appProc->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so"); 
     instrument();
 
     // continue execution of the mutatee

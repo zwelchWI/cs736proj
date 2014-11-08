@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sched.h>
+#include <linux/sched.h>
 #define SCHED SCHED_RR
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
@@ -66,12 +68,15 @@ pid_t my_fork(){
 		}
 		fclose(pFile);
 	}
-	//pick a random priority for the scheduling algorithm chosen
-        param.sched_priority = sched_get_priority_min(SCHED)+
+	ndx++;
+	if(ndx < numThreads){
+		//pick a random priority for the scheduling algorithm chosen
+		param.sched_priority = sched_get_priority_min(SCHED)+
                             prios[ndx]; // rand()%sched_get_priority_max(SCHED);
 
-	ndx++;
-	int rtn = sched_setscheduler(getpid(), SCHED, &param); 
-	if(rtn != 0) printf("problems\n"); 
+		fprintf(logFile, "about to call original fork\n"); 
+		int rtn = sched_setscheduler(getpid(), SCHED, &param); 
+		if(rtn != 0) printf("problems\n"); 
+	}
 	return orig_fork();
 }
