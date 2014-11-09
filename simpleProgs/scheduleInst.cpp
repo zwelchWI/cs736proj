@@ -5,17 +5,26 @@
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
+#include "BPatch_binaryEdit.h"
+#include "BPatch_addressSpace.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
 BPatch bpatch;
+BPatch_addressSpace *app = NULL;
 BPatch_image *appImage = NULL;
-BPatch_process *appProc = NULL;
-BPatch_function *traceEntryFunc;
-BPatch_function *traceExitFunc;
-BPatch_type *intType;
-   
+//BPatch_process *appProc = NULL;
+//BPatch_function *traceEntryFunc;
+//BPatch_function *traceExitFunc;
+//BPatch_type *intType;
 vector<string> options;
+
+typedef enum {
+	create,
+	attach,
+	open} accessType_t; 
+
+accessType_t accessType;
 
 
 /* returns the first function to match a particular name */
@@ -146,13 +155,17 @@ int handleArgs(int argc,char **argv){
                 exit( 1);
             }
 	}else if ((arg == "-d") || (arg == "--dyninst")) {
-            appProc = startMutateeProcess(argc-i,argv+i);
+            accessType = create;  
+	    app = startMutateeProcess(argc-i,argv+i);
+	    //appProc = startMutateeProcess(argc-i,argv+i);
             return 0;
 	}else if ((arg == "-a") || (arg == "--attach")) {
 		//don't need path as linux does this I guess..
 		//char *path = argv[++i]; 
 		int pid = atoi(argv[++i]);
-		appProc = bpatch.processAttach(NULL, pid);
+		accessType = attach; 
+		app = bpatch.processAttach(NULL, pid);
+		//appProc = bpatch.processAttach(NULL, pid);
 		return 0;
 	} else if((arg == "-i")||(arg == "--instrument")){
             if (i + 1 < argc) { // Make sure we aren't at the end of argv!
@@ -168,6 +181,10 @@ int handleArgs(int argc,char **argv){
            }
         }else if((arg == "-r")||(arg == "--rNum")){
            srand(atoi(argv[++i]));
+        }else if(arg == "--rewrite"){
+	   accessType = open; 
+	   app = bpatch.openBinary(argv[++i]); 
+	   //appBin = bpatch.openBinary(argv[++i]); 
         }else {
             sources.push_back(argv[i]);
         
@@ -181,11 +198,10 @@ return 0;
 void createInst(){
     BPatch_function *origCreate = getFunction("pthread_create");
     if(!origCreate)
-        printf("ACK\n");
-
+	exit(1); 
     BPatch_function *newCreate = getFunction("my_pthread_create");
     if(!newCreate)
-        printf("ACK\n");
+	exit(1); 
 
     //had to load the file again, no idea why
     string createFile = "libcreateFunc.so";
@@ -198,8 +214,7 @@ void createInst(){
     rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
     if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
 
-    // instrument all function entries with count snippets
-    rtn = appProc->wrapFunction(origCreate,newCreate,syms[0]);
+    rtn = app->wrapFunction(origCreate,newCreate,syms[0]);
     if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
 
 }
@@ -225,11 +240,11 @@ void forkInst(){
     if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
 
     // instrument all function entries with count snippets
-    rtn = appProc->wrapFunction(origCreate,newCreate,syms[0]);
+    rtn = app->wrapFunction(origCreate,newCreate,syms[0]);
     if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
 
 }
-
+/*
 void syncInst(){
     vector<string> syncFuncs;
     syncFuncs.push_back("sem_wait");
@@ -251,7 +266,7 @@ void syncInst(){
     }
 
 }
-
+*/
 
 void memInst(){
 
@@ -262,7 +277,7 @@ void instrument(){
          cout << *it<<endl;
          if(*it == "create"){
              createInst();
-	 }
+	 }/*
          else if(*it == "sync"){
              syncInst();
          }
@@ -271,7 +286,7 @@ void instrument(){
          }
 	 else if(*it == "fork"){
 	     forkInst(); 
-	 }
+	 }*/
          else{
              cerr <<"Invalid instrumentation type "<<*it<<endl;
              exit(1);
@@ -279,7 +294,7 @@ void instrument(){
     }
 }
 
-
+/*
 
 //ALTERED FROM http://www.paradyn.org/tracetool.html#Download
 enum arg_type { tr_unknown = 0, tr_int = 1 };
@@ -452,7 +467,7 @@ void initTracing(){
    }
 }
 
-
+*/
 
 
 
@@ -460,27 +475,32 @@ int main(int argc, char *argv[]){
     // process control
 
     handleArgs(argc,argv);
-    appImage = appProc->getImage();
-
+    appImage = app->getImage();
+    BPatch_process *appProc = dynamic_cast<BPatch_process *>(app); 
+    BPatch_binaryEdit *appBin = dynamic_cast<BPatch_binaryEdit *>(app); 
     // Load the tool library
 
-    appProc->loadLibrary("./libcreateFunc.so");
-    
-    //for running as root
-    //appProc->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so"); 
-
-    initTracing();
+    //appProc->loadLibrary("./libcreateFunc.so");
+    app->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so");
+    if(appBin){
+//	app->loadLibrary("/lib/x86_64-linux-gnu/libpthread.so.0"); 
+    }
+//    initTracing();
 
     instrument();
+    if (appProc){
+	printf("\nCalling process continue\n");
+	appProc->continueExecution();
 
-    // continue execution of the mutatee
-    printf("\nCalling process continue\n");
-    appProc->continueExecution();
+	// wait for mutatee to terminate 
+	while (!appProc->isTerminated()) {
+		bpatch.waitForStatusChange();
+	}
+     }
 
-    // wait for mutatee to terminate 
-    while (!appProc->isTerminated()) {
-        bpatch.waitForStatusChange();
-    }
-    return 0;
+     if(appBin){
+	appBin->writeFile("./newBin");
+     }
+     return 0;
 }
 

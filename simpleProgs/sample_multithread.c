@@ -58,7 +58,10 @@ int main(int argc, char* argv[]) {
 	}
 */
 
-
+	printf("I'm pid %d. Should I start? ", getpid()); 
+	while(getchar() != 'y'){
+		usleep(100); 
+	}
 
 	pthread_t threads[NUMTHREADS]; 
 	pthread_attr_t attr[NUMTHREADS];

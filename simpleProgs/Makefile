@@ -1,5 +1,5 @@
 CC = gcc
-COPTS = -Wall -g -std=gnu99
+COPTS = -Wall 
 CPPOPTS = -Wall -g
 DYNINST_ROOT = /usr/local
 CPP = g++
@@ -15,7 +15,7 @@ $(EXECNAME).o: ./$(EXECNAME).cpp
 	$(CPP) -g -c $(CPPOPTS) -I$(DYNINST_ROOT)/include -std=c++0x $(EXECNAME).cpp
 
 libcreateFunc.so: createFunc.c
-	gcc -o libcreateFunc.so -shared createFunc.c -lpthread -fPIC $(OPTS)
+	gcc $(COPTS) -o libcreateFunc.so -shared createFunc.c -lpthread -fPIC 
 
 
 deadlock: deadlock.o

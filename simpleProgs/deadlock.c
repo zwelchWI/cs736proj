@@ -32,8 +32,8 @@ void print_sched_attr(){
 
 void *hello1(void *arg)
 {
-
-	for(int ndx = 0;ndx<10000;ndx++){
+	int ndx; 
+	for(ndx = 0;ndx<10000;ndx++){
 		sem_wait(&S);
 
 		print_sched_attr(); 
@@ -51,7 +51,8 @@ return NULL;
 void *hello2(void *arg)
 {
 
-	for(int ndx = 0;ndx<10000;ndx++){
+	int ndx; 
+	for(ndx = 0;ndx<10000;ndx++){
 		sem_wait(&Q);
 		sem_wait(&S);
 		a--;
