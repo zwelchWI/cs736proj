@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python3.4
 import time
 import subprocess
 import datetime
@@ -6,7 +6,7 @@ import os
 import sys
 import math
 
-executable = "/home/$USER/cs736proj/simpleProgs/"
+executable = "/home/$USER/cs736proj/simpleProgs"
 execName = "scheduleInst"
 resDir = "/tmp"
 
@@ -79,7 +79,7 @@ while frame <= num:
 	except subprocess.TimeoutExpired:
 		stdouterr.close()
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
-		print("rand seed "+str(frame)+" caused an error \n")
+		print("rand seed "+str(frame)+" timed out \n")
 		sumFile.write("rand seed "+str(frame)+" caused an error \n")
 		os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
 		os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")

@@ -188,12 +188,17 @@ void createInst(){
         printf("ACK\n");
 
     //had to load the file again, no idea why
-    string createFile = "libcreateFunc.so";
+    char* createFile; 
+    createFile = getenv("SCHEDULEINST_LIB"); 
+
     Symtab *obj = NULL;
     vector<Symbol *> syms;
 
     bool rtn = Symtab::openFile(obj, createFile);
-    if(!rtn) printf("Problem opening file");
+    if(!rtn || obj == NULL){
+	fprintf(stderr, "Problem opening tool library\n");
+ 	exit(1); 
+    }
 
     rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
     if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
@@ -463,16 +468,19 @@ void initTracing(){
 
 int main(int argc, char *argv[]){
     // process control
-
+    char* lib_path = NULL;
+    lib_path = getenv("SCHEDULEINST_LIB"); 
+    if(lib_path == NULL){
+	fprintf(stderr, "SCHEDULEINST_LIB not defined\n"); 
+	exit(1); 
+    }
     handleArgs(argc,argv);
     appImage = appProc->getImage();
 
     // Load the tool library
-
-    appProc->loadLibrary("./libcreateFunc.so");
-    
-    //for running as root
-    //appProc->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so"); 
+    if(!appProc->loadLibrary(lib_path)){
+	fprintf(stderr, "Couldn't load tool library.\n"); 
+    }
 
     initTracing();
 
