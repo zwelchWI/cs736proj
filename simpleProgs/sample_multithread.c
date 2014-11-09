@@ -39,10 +39,15 @@ void *func1(void *arg)
 	print_sched_attr(val); 
 	
 	unsigned int i;
-	for(i = 0; i < UINT_MAX; i++){
-		if(i == UINT_MAX / 2)
-			printf("Thread %d is half way done.\n", val); 
+	for(i = 0; i < INT_MAX; i++){
+		if(i == INT_MAX / 2){
+			printf("Thread %d is %f way done.\n", val,number[val]/((float)(10000))); 
+			print_sched_attr(val);
+		}
+		pthread_mutex_lock(&lock);
 		number[val]++;
+		pthread_mutex_unlock(&lock);
+
 	}
 
 	printf("Thread end: number %d\n", val); 

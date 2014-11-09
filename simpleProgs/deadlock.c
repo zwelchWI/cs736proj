@@ -53,6 +53,7 @@ void *hello2(void *arg)
 
 	for(int ndx = 0;ndx<10000;ndx++){
 		sem_wait(&Q);
+                print_sched_attr();
 		sem_wait(&S);
 		a--;
 		sem_post(&S);
@@ -151,8 +152,6 @@ int main(int argc, char* argv[]) {
                 return 0;
         }
 /* Synchronize the completion of each thread. */
-
-	printf("DONE\n");
 		ret = pthread_join(threads[1],NULL);
                 ret = pthread_join(threads[0],NULL);
 

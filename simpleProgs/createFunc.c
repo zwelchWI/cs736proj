@@ -6,7 +6,8 @@
 #define SCHED SCHED_RR
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
-                       
+pthread_mutex_t lock;
+FILE *logFile = NULL;                      
 int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg) {
 	struct sched_param param;
@@ -14,7 +15,6 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	static FILE *pFile = NULL;
 	static int numThreads = 0;
 	static int* prios= NULL;
-	static FILE *logFile = NULL;
 
 	if(logFile == NULL){
 		logFile = fopen("/tmp/threadLog.txt", "a");
@@ -54,10 +54,9 @@ void randPrio(){
   	struct sched_param fifo_param;
 	
          fifo_param.sched_priority =sched_get_priority_min(SCHED)+
-                                    rand()%sched_get_priority_max(SCHED);
+                                    rand()%(sched_get_priority_max(SCHED)-sched_get_priority_min(SCHED));
          if(pthread_setschedparam(this,SCHED,&fifo_param) != 0)
 			perror("couldn't set sched:");
-	usleep(1);
 }
 
 
@@ -108,7 +107,10 @@ void trace_entry_func(char *func_name, char *desc_line, int num_func_args,
                       void *func_arg1, int func_arg1_type) {
    char line[200];
    char tempstr[100];
-
+    
+   if(logFile == NULL){
+      logFile = fopen("/tmp/threadLog.txt","a");
+   }
    sprintf(line, "[TRACE_ENTRY- thread:%d, func: %s, num_args: %d",
            syscall(SYS_gettid),func_name, num_func_args);
 
@@ -118,13 +120,20 @@ void trace_entry_func(char *func_name, char *desc_line, int num_func_args,
    }
    sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   fprintf(stderr, line);
+   pthread_mutex_lock(&lock);
+   fprintf(logFile, line);
+   fflush(logFile);
+   pthread_mutex_unlock(&lock);
 }
 
 void trace_exit_func(char *func_name, char *desc_line, void *ret_val,
                      int ret_val_type) {
    char line[200];
    char tempstr[100];
+
+   if(logFile == NULL){
+      logFile = fopen("/tmp/threadLog.txt","a");
+   }
 
    sprintf(line, "[TRACE_EXIT- thread:%d, func: %s",syscall(SYS_gettid), func_name);
    if(ret_val_type == 1) {
@@ -133,6 +142,9 @@ void trace_exit_func(char *func_name, char *desc_line, void *ret_val,
    }
    sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   fprintf(stderr, line);
+   pthread_mutex_lock(&lock);
+   fprintf(logFile, line);
+   fflush(logFile);
+   pthread_mutex_unlock(&lock);
 }
 

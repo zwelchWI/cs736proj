@@ -230,8 +230,6 @@ void syncInst(){
     syncFuncs.push_back("sem_post");
     syncFuncs.push_back("pthread_mutex_unlock");
     syncFuncs.push_back("pthread_mutex_lock");
-    syncFuncs.push_back("sem_wait");
-    syncFuncs.push_back("sem_post");
     BPatch_function *inst = getFunction("randPrio");
 
        // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
@@ -300,8 +298,11 @@ bool should_instrument_module(char *mod_input) {
    mystrlwr(modname);
    while(i<1000) {
       char *cur_mod = excluded_modules[i];
+      
       if(cur_mod == NULL) break;
-      if(strstr(modname, cur_mod)){
+      if(strstr(modname,"athread")){}
+      else if(strstr(modname,"zip")){}
+      else if(strstr(modname, cur_mod)){
           return false;
       }
       i++;
@@ -403,29 +404,6 @@ void instrument_funcs_in_module(BPatch_module *mod) {
       instrument_entry(func, name);
       instrument_exit(func, name);
    }
-    vector<string> syncFuncs;
-    syncFuncs.push_back("sem_wait");
-    syncFuncs.push_back("sem_post");
-    syncFuncs.push_back("pthread_mutex_unlock");
-    syncFuncs.push_back("pthread_mutex_lock");
-    syncFuncs.push_back("sem_wait");
-    syncFuncs.push_back("sem_post");
-    syncFuncs.push_back("pthread_create");
-    syncFuncs.push_back("pthread_spin_lock");
-    syncFuncs.push_back("pthread_spin_unlock");
-
-       // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
-    for (auto iter = syncFuncs.begin(); iter != syncFuncs.end(); ++iter) {
-       // 4. insert increment snippet at function entry
-       BPatch_function *syncFunc = getFunction((*iter).c_str());
-      syncFunc->getName(name, 99);
-      if(strstr(name,"__"))continue;
-
-      cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
-      i++;
-      instrument_entry(syncFunc, name);
-      instrument_exit(syncFunc, name);
-   }
 }
 
 void initTracing(){
@@ -444,6 +422,33 @@ void initTracing(){
          instrument_funcs_in_module(mod);
       }
    }
+
+   char name[100];
+   unsigned int i=0;
+
+    vector<string> syncFuncs;
+    syncFuncs.push_back("sem_wait");
+    syncFuncs.push_back("sem_post");
+    syncFuncs.push_back("pthread_mutex_unlock");
+    syncFuncs.push_back("pthread_mutex_lock");
+    syncFuncs.push_back("pthread_create");
+    syncFuncs.push_back("pthread_spin_lock");
+    syncFuncs.push_back("pthread_spin_unlock");
+
+       // 1. Find BPatch_point at entry of main for counter variable instrumentation initialization
+    for (auto iter = syncFuncs.begin(); iter != syncFuncs.end(); ++iter) {
+       // 4. insert increment snippet at function entry
+       BPatch_function *syncFunc = getFunction((*iter).c_str());
+      syncFunc->getName(name, 99);
+      if(strstr(name,"__"))continue;
+
+      cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
+      i++;
+      instrument_entry(syncFunc, name);
+      instrument_exit(syncFunc, name);
+   }
+
+
 }
 
 
