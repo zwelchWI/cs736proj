@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.4
+#!/usr/bin/python3.4
 import time
 import subprocess
 import datetime
@@ -23,15 +23,21 @@ def CmdLineFind( tag, defaultvalue ):
 			return sys.argv[i+1]
 	return defaultvalue
 
+def CmdDefined ( tag ):
+	i = CmdLineFindIndex(tag)
+	if i > 0: 
+		return True
+	return False
 
-scheds     = CmdLineFind("-t","RAND")
+scheds     = CmdLineFind("-t","")
 numThreads = int(CmdLineFind("-s",1000))
-insts      = CmdLineFind("-i","create")
+insts      = CmdLineFind("-i","")
 execName   = CmdLineFind("-e","scheduleInst")
 joblabel     = CmdLineFind("-l","run")
 num        = int(CmdLineFind("-n",1000))
 timeOut    = int(CmdLineFind("-timeout",120))
-file	   = CmdLineFind("-f", "") 
+filename   = CmdLineFind("-f", "") 
+noInstrument = CmdDefined("--noinstrument")
 frame = 1
 
 
@@ -49,7 +55,8 @@ sumFile = open(resDir+st+"/summary.txt","w")
 extraLine = ""
 extras = int( CmdLineFindIndex("-d") )
 if extras > 0:
-	extraLine = extraLine + " -d "
+	if(noInstrument == False):
+		extraLine = extraLine + " -d "
 	for task in sys.argv[extras+1:]:
 		extraLine = extraLine + str(task) + " "
 
@@ -63,7 +70,11 @@ while frame <= num:
 		padframe = "0" + padframe
 	if frame < 10:
 		padframe = "0" + padframe
-	command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine#+ " &> stderrout.txt"
+	if(noInstrument): 
+		command = extraLine
+		print("Not instrumenting\n")
+	else:
+		command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine#+ " &> stderrout.txt"
 	if frame == 1:
             sumFile.write("Execution results for "+command+"\n")
 	print(command)
@@ -76,17 +87,19 @@ while frame <= num:
 		stdouterr.close()
 		print("rand seed "+str(frame)+" caused an error \n")
 		sumFile.write("rand seed "+str(frame)+" caused an error \n")
-		os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
+		if(noInstrument == False):
+			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
 	except subprocess.TimeoutExpired:
 		stdouterr.close()
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
 		print("rand seed "+str(frame)+" timed out \n")
 		sumFile.write("rand seed "+str(frame)+"  timed out \n")
-		os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
+		if(noInstrument == False):
+			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
 		os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
 	if check_archive:
 		try: 
-			check_command = "pbzip2 -tv " + file 
+			check_command = "pbzip2 -tv " + filename
 			sumFile.write("Running check with command " + check_command + "\n")
 			subprocess.check_call(check_command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
 			os.system("mv stderrout.txt "+resDir+st+"/out."+str(frame)+".txt")
@@ -95,15 +108,17 @@ while frame <= num:
 			stdouterr.close()
 			print("archive test failed \n")
 			sumFile.write("rand seed "+str(frame)+" compression failure \n")
-			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
-			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
+			if(noInstrument == False):
+				os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
+			os.system("mv stderrout.txt "+resDir+st+"/stderrout.check."+str(frame)+".txt")
 		except subprocess.TimeoutExpired:
 			stdouterr.close()
 			os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
 			print("rand seed "+str(frame)+" archive test timed out \n")
 			sumFile.write("rand seed "+str(frame)+" archive test timed out \n")
-			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
-			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
+			if(noInstrument == False):
+				os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
+			os.system("mv stderrout.txt "+resDir+st+"/stderrout.check."+str(frame)+".txt")
 	print("DONE WITH " +str(frame))
 	sumFile.flush()
 	frame += 1

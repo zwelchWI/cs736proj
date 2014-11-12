@@ -5,11 +5,13 @@
 #include <sched.h>
 #include <linux/sched.h>
 #include <time.h>
-#define SCHED SCHED_RR
+
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
+int schedule = SCHED_OTHER; 
 pthread_mutex_t lock;
 FILE *logFile = NULL;                      
+
 int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg) {
 	struct sched_param param;
@@ -23,7 +25,7 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	}
       	if(prios == NULL){
 		pFile = fopen("createPrios.txt","r");
-		fscanf(pFile, "%d\n",&numThreads);
+		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
 		prios = (int *)malloc(numThreads*sizeof(int));
 		int ndx2 = 0;
 		for(ndx2 = 0;ndx2 < numThreads;ndx2++){
@@ -33,12 +35,10 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	}
 	//need this or the real-time scheduling gets ignored
 	pthread_attr_setinheritsched(attr,PTHREAD_EXPLICIT_SCHED);
-	pthread_attr_setschedpolicy(attr, SCHED);
-	
-	//pick a random priority for the scheduling algorithm chosen
-        param.sched_priority = sched_get_priority_min(SCHED)+
-                            prios[ndx]; // rand()%sched_get_priority_max(SCHED);
-
+	pthread_attr_setschedpolicy(attr, schedule);
+		//pick a random priority for the scheduling algorithm chosen
+       	param.sched_priority = sched_get_priority_min(schedule)+
+       		 prios[ndx]; // rand()%sched_get_priority_max(schedule);
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
         if(logFile){
@@ -55,9 +55,10 @@ void randPrio(){
 	pthread_t this = pthread_self();
   	struct sched_param fifo_param;
 	
-         fifo_param.sched_priority =sched_get_priority_min(SCHED)+
-                                    rand()%(sched_get_priority_max(SCHED)-sched_get_priority_min(SCHED));
-         if(pthread_setschedparam(this,SCHED,&fifo_param) != 0)
+	fifo_param.sched_priority =sched_get_priority_min(schedule)+
+			    rand()%(sched_get_priority_max(schedule)-sched_get_priority_min(schedule));
+
+        if(pthread_setschedparam(this,schedule,&fifo_param) != 0)
 			perror("couldn't set sched:");
 }
 
@@ -89,11 +90,11 @@ pid_t my_fork(){
 	ndx++;
 	if(ndx < numThreads){
 		//pick a random priority for the scheduling algorithm chosen
-		param.sched_priority = sched_get_priority_min(SCHED)+
-                            prios[ndx]; // rand()%sched_get_priority_max(SCHED);
+		param.sched_priority = sched_get_priority_min(schedule)+
+                            prios[ndx]; // rand()%sched_get_priority_max(schedule);
 
 		fprintf(logFile, "about to call original fork\n"); 
-		int rtn = sched_setscheduler(getpid(), SCHED, &param); 
+		int rtn = sched_setscheduler(getpid(), schedule, &param); 
 		if(rtn != 0) printf("problems\n"); 
 	}
 	return orig_fork();

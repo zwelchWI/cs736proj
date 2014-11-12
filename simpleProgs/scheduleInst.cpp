@@ -70,7 +70,7 @@ int schedule(string sched, int numThreads){
     FILE *file = fopen("createPrios.txt","w");
     int ret = 0;
     if(sched == "RAND"){
-	fprintf(file,"%d\n",numThreads);
+	fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
         int ndx;
         for(ndx = 0;ndx < numThreads;ndx++){
 	    fprintf(file,"%d\n",rand()%(sched_get_priority_max(SCHED_RR)-
@@ -78,19 +78,27 @@ int schedule(string sched, int numThreads){
         }
     }
     else if(sched == "EQUAL"){
-        fprintf(file,"%d\n",numThreads);
+        fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
         int ndx;
         for(ndx = 0;ndx < numThreads;ndx++){
             fprintf(file,"%d\n",sched_get_priority_min(SCHED_RR));
         }
     }
     else if(sched == "REVERSE"){
-        fprintf(file,"%d\n",numThreads);
+        fprintf(file,"%d,%d\n", SCHED_RR, numThreads);
         int ndx;
         for(ndx = 0;ndx < numThreads;ndx++){
 	    int val = (sched_get_priority_min(SCHED_RR)+numThreads-(ndx+1));
             val = val > sched_get_priority_min(SCHED_RR)?val:sched_get_priority_min(SCHED_RR);
             fprintf(file,"%d\n",val);
+        }
+    }
+    else if(sched == "NORMAL"){
+	fprintf(file, "%d,%d\n", SCHED_OTHER, numThreads);
+	//not needed, but let's keep the code/input files consistent
+        int ndx;
+        for(ndx = 0;ndx < numThreads;ndx++){
+            fprintf(file,"%d\n", 0);
         }
     }
     else{
