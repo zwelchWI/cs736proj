@@ -454,7 +454,7 @@ void initTracing(){
     syncFuncs.push_back("sem_post");
     syncFuncs.push_back("pthread_mutex_unlock");
     syncFuncs.push_back("pthread_mutex_lock");
-    syncFuncs.push_back("pthread_create");
+    syncFuncs.push_back("my_pthread_create");
     syncFuncs.push_back("pthread_spin_lock");
     syncFuncs.push_back("pthread_spin_unlock");
 
