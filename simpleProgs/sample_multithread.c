@@ -14,7 +14,9 @@ pthread_mutex_t lock;
 
 //taken from pthreads man page, prints out the current priority and
 //the policy
-
+void my_great_func(){
+	printf("I'm the old function!\n"); 
+}
 void print_sched_attr(int num){
 	int policy, rtn; 
 	struct sched_param param; 
@@ -51,6 +53,7 @@ void *func1(void *arg)
 }
 
 int main(int argc, char* argv[]) {
+	my_great_func(); 
 
 /*	if(pthread_mutex_init(&lock, NULL) != 0){
 		perror("mutex_init: ");

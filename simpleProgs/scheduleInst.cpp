@@ -483,11 +483,34 @@ int main(int argc, char *argv[]){
     //appProc->loadLibrary("./libcreateFunc.so");
     app->loadLibrary("/home/robert/cs736proj/simpleProgs/libcreateFunc.so");
     if(appBin){
-//	app->loadLibrary("/lib/x86_64-linux-gnu/libpthread.so.0"); 
+	app->loadLibrary("libpthread.so.0"); 
     }
 //    initTracing();
 
-    instrument();
+    BPatch_function *origCreate = getFunction("pthread_create");
+    if(!origCreate)
+	exit(1); 
+    BPatch_function *newCreate = getFunction("my_other_great_func");
+    if(!newCreate)
+	exit(1); 
+
+    //had to load the file again, no idea why
+    string createFile = "/home/robert/cs736proj/simpleProgs/libcreateFunc.so"; 
+    Symtab *obj = NULL;
+    vector<Symbol *> syms;
+
+    bool rtn = Symtab::openFile(obj, createFile);
+    if(!rtn) printf("Problem opening file");
+/*
+    rtn = obj->findSymbol(syms, "orig_pthread_create", Symbol::ST_UNKNOWN,mangledName, false, false, true);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+
+    rtn = app->wrapFunction(origCreate,newCreate,syms[0]);
+    if(!rtn) cout << SymtabAPI::Symtab::printError(SymtabAPI::Symtab::getLastSymtabError()) << endl;
+*/
+    rtn = app->replaceFunction(*origCreate, *newCreate); 
+	if(!rtn) printf("broken!\n"); 
+    //instrument();
     if (appProc){
 	printf("\nCalling process continue\n");
 	appProc->continueExecution();

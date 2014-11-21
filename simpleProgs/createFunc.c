@@ -6,7 +6,9 @@
 #include <linux/sched.h>
 #include <time.h>
 #define SCHED SCHED_RR
-
+void my_other_great_func(){
+	printf("I'm the new function!\n");
+}
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
                        
