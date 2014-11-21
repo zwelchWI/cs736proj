@@ -8,8 +8,7 @@
 
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
-int schedule = SCHED_OTHER; 
-pthread_mutex_t lock;
+int schedule = SCHED_RR; 
 FILE *logFile = NULL;                      
 
 int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
@@ -41,11 +40,6 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
        		 prios[ndx]; // rand()%sched_get_priority_max(schedule);
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
-        if(logFile){
-		fprintf(logFile, "about to call original pthread create with %d prio on fn %p\n",
-				param.sched_priority,start_routine);
-		fflush(logFile);
-	} 
 	int val=orig_pthread_create(thread,attr,start_routine,arg);
 	return val;
 }
@@ -93,7 +87,6 @@ pid_t my_fork(){
 		param.sched_priority = sched_get_priority_min(schedule)+
                             prios[ndx]; // rand()%sched_get_priority_max(schedule);
 
-		fprintf(logFile, "about to call original fork\n"); 
 		int rtn = sched_setscheduler(getpid(), schedule, &param); 
 		if(rtn != 0) printf("problems\n"); 
 	}
@@ -126,10 +119,8 @@ void trace_entry_func(char *func_name, char *desc_line, int num_func_args,
    }
    sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   pthread_mutex_lock(&lock);
    fprintf(logFile, line);
    fflush(logFile);
-   pthread_mutex_unlock(&lock);
 }
 
 void trace_exit_func(char *func_name, char *desc_line, void *ret_val,
@@ -148,9 +139,7 @@ void trace_exit_func(char *func_name, char *desc_line, void *ret_val,
    }
    sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   pthread_mutex_lock(&lock);
    fprintf(logFile, line);
    fflush(logFile);
-   pthread_mutex_unlock(&lock);
 }
 

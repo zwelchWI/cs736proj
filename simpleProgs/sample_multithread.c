@@ -39,8 +39,8 @@ void *func1(void *arg)
 	print_sched_attr(val); 
 	
 	unsigned int i;
-	for(i = 0; i < INT_MAX; i++){
-		if(i == INT_MAX / 2){
+	for(i = 0; i < 10000; i++){
+		if(i == 10000 / 2){
 			printf("Thread %d is %f way done.\n", val,number[val]/((float)(10000))); 
 			print_sched_attr(val);
 		}
