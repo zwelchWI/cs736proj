@@ -5,10 +5,13 @@
 #include <sched.h>
 #include <linux/sched.h>
 #include <time.h>
+#include <string.h>
 
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
-int schedule = SCHED_RR; 
+//SCHED_RESET_ON_FORK
+//why this can't be SCHED_OTHER nobody knows...
+int schedule = SCHED_RR;  
 FILE *logFile = NULL;                      
 
 int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
@@ -19,12 +22,27 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 	static int numThreads = 0;
 	static int* prios= NULL;
 
+	//setup to get the schedule type and threads for first time
+	//this function is called
 	if(logFile == NULL){
 		logFile = fopen("/tmp/threadLog.txt", "a");
 	}
+
+	//checking the arguments passed in
+	if(attr == NULL){
+		pthread_attr_t newattr;
+                pthread_attr_init(&newattr);
+                attr = &newattr;
+        }
+	if(attr == NULL || thread == NULL || start_routine == NULL){
+		fprintf(logFile, "null passed to needed argument in my_pthread_create\n"); 
+		exit(1); 
+	}
+	
       	if(prios == NULL){
 		pFile = fopen("createPrios.txt","r");
 		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
+		printf("schedule %d threads %d\n", schedule, numThreads); 
 		prios = (int *)malloc(numThreads*sizeof(int));
 		int ndx2 = 0;
 		for(ndx2 = 0;ndx2 < numThreads;ndx2++){
@@ -32,20 +50,25 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 		}
 		fclose(pFile);
 	}
-	//need this or the real-time scheduling gets ignored
-	pthread_attr_setinheritsched(attr,PTHREAD_EXPLICIT_SCHED);
+	//need this or the real-time scheduling gets ignored, except for SCHED_OTHER
+	if(schedule != 0) pthread_attr_setinheritsched(attr,PTHREAD_EXPLICIT_SCHED);
+
 	pthread_attr_setschedpolicy(attr, schedule);
-		//pick a random priority for the scheduling algorithm chosen
+
+	//pick a random priority for the scheduling algorithm chosen
        	param.sched_priority = sched_get_priority_min(schedule)+
        		 prios[ndx]; // rand()%sched_get_priority_max(schedule);
+
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
-	int val=orig_pthread_create(thread,attr,start_routine,arg);
-	return val;
+	return orig_pthread_create(thread,attr,start_routine,arg);
 }
 
 
 void randPrio(){
+	//SCHED_OTHER should not choose a random priority
+	if(schedule == 0) return;
+ 
 	pthread_t this = pthread_self();
   	struct sched_param fifo_param;
 	
