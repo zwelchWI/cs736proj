@@ -8,15 +8,19 @@
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
+#include "BPatch_process.h"
+/*
+enum BPatch_exitType { NoExit, ExitedNormally,
+	ExitedViaSignal };
+*/
 BPatch bpatch;
 BPatch_image *appImage = NULL;
 BPatch_process *appProc = NULL;
 BPatch_function *traceEntryFunc;
 BPatch_function *traceExitFunc;
 BPatch_type *intType;
-   
-vector<string> options;
 
+vector<string> options;
 
 /* returns the first function to match a particular name */
 BPatch_function* getFunction(const char* name)
@@ -78,7 +82,7 @@ int schedule(string sched, int numThreads){
         }
     }
     else if(sched == "EQUAL"){
-        fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
+        fprintf(file,"%d,%d\n", SCHED_RR, numThreads);
         int ndx;
         for(ndx = 0;ndx < numThreads;ndx++){
             fprintf(file,"%d\n",sched_get_priority_min(SCHED_RR));
@@ -258,7 +262,7 @@ void syncInst(){
        vector<BPatch_snippet *> args;
        BPatch_funcCallExpr syncF(*inst, args);
        BPatch_Vector<BPatch_point*> * entryPoints = syncFunc->findPoint(BPatch_exit);
-       appProc->insertSnippet(syncF, *entryPoints);
+       if(entryPoints != NULL) appProc->insertSnippet(syncF, *entryPoints);
     }
 
 }
@@ -360,9 +364,9 @@ void instrument_entry(BPatch_function *func, char *funcname) {
 
    BPatch_Vector<BPatch_point *> *entryPointBuf = 
       func->findPoint(BPatch_entry);
-   if((*entryPointBuf).size() != 1) {
+   if(entryPointBuf == NULL || (*entryPointBuf).size() != 1) {
       cerr << "couldn't find entry point for func " << funcname << endl;
-      exit(1);
+      return;
    }
    BPatch_point *entryPoint = (*entryPointBuf)[0];
 
@@ -393,7 +397,7 @@ void instrument_exit(BPatch_function *func, char *funcname) {
    BPatch_Vector<BPatch_point *> *exitPointBuf = func->findPoint(BPatch_exit);
 
    // dyninst might not be able to find exit point
-   if((*exitPointBuf).size() == 0) {
+   if(exitPointBuf == NULL || (*exitPointBuf).size() == 0) {
       cerr << "   couldn't find exit point, so returning\n";
       return;
    }
@@ -489,19 +493,25 @@ int main(int argc, char *argv[]){
     if(!appProc->loadLibrary(lib_path)){
 	fprintf(stderr, "Couldn't load tool library.\n"); 
     }
-
     initTracing();
-
     instrument();
 
     // continue execution of the mutatee
     printf("\nCalling process continue\n");
-    appProc->continueExecution();
-
+    bool rtn = appProc->continueExecution();
+    if(!rtn){
+	printf("error starting proc\n"); 
+	exit(1); 
+    }
     // wait for mutatee to terminate 
     while (!appProc->isTerminated()) {
         bpatch.waitForStatusChange();
     }
+    BPatch_exitType exit_type = appProc->terminationStatus();
+    if(exit_type == ExitedViaSignal){
+    	printf("Calling process done caught signal %d\n", appProc->getExitSignal()); 
+    }
+    printf("Calling process done: exit code %d\n", appProc->getExitCode()); 
     return 0;
 }
 
