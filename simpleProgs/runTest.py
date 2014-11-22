@@ -81,6 +81,7 @@ while frame <= num:
 	stdouterr = open("stderrout.txt","w")
 	check_archive = False
 	try:
+		command ="rm -f /tmp/threadLog.txt;"+command
 		subprocess.check_call(command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
 		check_archive = True
 	except subprocess.CalledProcessError:
