@@ -52,6 +52,7 @@ os.mkdir(resDir+st)
 sumFile = open(resDir+st+"/summary.txt","w")
 
 
+print(resDir+st)
 extraLine = ""
 extras = int( CmdLineFindIndex("-d") )
 if extras > 0:
@@ -60,6 +61,8 @@ if extras > 0:
 	for task in sys.argv[extras+1:]:
 		extraLine = extraLine + str(task) + " "
 
+
+os.system("rm -rf /tmp/threadLog.txt")
 
 
 while frame <= num:
@@ -81,45 +84,20 @@ while frame <= num:
 	stdouterr = open("stderrout.txt","w")
 	check_archive = False
 	try:
-		command ="rm -f /tmp/threadLog.txt;"+command
 		subprocess.check_call(command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
 		check_archive = True
 	except subprocess.CalledProcessError:
 		stdouterr.close()
 		print("rand seed "+str(frame)+" caused an error \n")
 		sumFile.write("rand seed "+str(frame)+" caused an error \n")
-		if(noInstrument == False):
-			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
 	except subprocess.TimeoutExpired:
 		stdouterr.close()
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
 		print("rand seed "+str(frame)+" timed out \n")
 		sumFile.write("rand seed "+str(frame)+"  timed out \n")
-		if(noInstrument == False):
-			os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
 		os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
-	if check_archive:
-		try: 
-			check_command = "pbzip2 -tv " + filename
-			sumFile.write("Running check with command " + check_command + "\n")
-			subprocess.check_call(check_command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
-			os.system("mv stderrout.txt "+resDir+st+"/out."+str(frame)+".txt")
-			stdouterr.close()
-		except subprocess.CalledProcessError:
-			stdouterr.close()
-			print("archive test failed \n")
-			sumFile.write("rand seed "+str(frame)+" compression failure \n")
-			if(noInstrument == False):
-				os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
-			os.system("mv stderrout.txt "+resDir+st+"/stderrout.check."+str(frame)+".txt")
-		except subprocess.TimeoutExpired:
-			stdouterr.close()
-			os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
-			print("rand seed "+str(frame)+" archive test timed out \n")
-			sumFile.write("rand seed "+str(frame)+" archive test timed out \n")
-			if(noInstrument == False):
-				os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog."+str(frame)+".txt")
-			os.system("mv stderrout.txt "+resDir+st+"/stderrout.check."+str(frame)+".txt")
+
+	os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
 	print("DONE WITH " +str(frame))
 	sumFile.flush()
 	frame += 1
