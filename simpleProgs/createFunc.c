@@ -6,27 +6,54 @@
 #include <linux/sched.h>
 #include <time.h>
 #include <string.h>
+#include <assert.h>
+#include <stdbool.h>
 
+//headers for dyninst 
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
-//SCHED_RESET_ON_FORK
-//why this can't be SCHED_OTHER nobody knows...
-int schedule = SCHED_RR;  
-FILE *logFile = NULL;                      
+//global vars
+bool init = false; 
+//SCHED_RESET_ON_FORK should probably be added in here somewhere
+int schedule = SCHED_OTHER;
+FILE *logFile = NULL;                     
+int numThreads = 0;
+int* prios= NULL;
+int ndx = 0;
 
-int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
-                          void *(*start_routine) (void *), void *arg) {
-	struct sched_param param;
-	static int ndx = 0;
-	static FILE *pFile = NULL;
-	static int numThreads = 0;
-	static int* prios= NULL;
+void initialize(){
+	FILE *pFile = NULL;
 
 	//setup to get the schedule type and threads for first time
 	//this function is called
 	if(logFile == NULL){
 		logFile = fopen("/tmp/threadLog.txt", "a");
+		assert(logFile != NULL); 
 	}
+      	if(prios == NULL){
+		pFile = fopen("createPrios.txt","r");
+		assert(pFile != NULL); 
+
+		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
+		assert(schedule >= 0 && numThreads > 0); 
+
+		prios = (int *)malloc(numThreads*sizeof(int));
+		int ndx2 = 0;
+		for(ndx2 = 0;ndx2 < numThreads;ndx2++){
+			fscanf(pFile,"%d\n",&(prios[ndx2]));
+		}
+		fclose(pFile);
+	}
+	fprintf(logFile, "init instrumenting library\n");
+	fprintf(logFile, "schedule %d threads %d\n", schedule, numThreads); 
+	init = true; 
+	return; 
+}
+
+int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
+                          void *(*start_routine) (void *), void *arg) {
+	if(!init) initialize(); 
+	struct sched_param param;
 
 	//checking the arguments passed in
 	if(attr == NULL){
@@ -39,17 +66,6 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 		exit(1); 
 	}
 	
-      	if(prios == NULL){
-		pFile = fopen("createPrios.txt","r");
-		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
-		printf("schedule %d threads %d\n", schedule, numThreads); 
-		prios = (int *)malloc(numThreads*sizeof(int));
-		int ndx2 = 0;
-		for(ndx2 = 0;ndx2 < numThreads;ndx2++){
-			fscanf(pFile,"%d\n",&(prios[ndx2]));
-		}
-		fclose(pFile);
-	}
 	//need this or the real-time scheduling gets ignored, except for SCHED_OTHER
 	if(schedule != 0) pthread_attr_setinheritsched(attr,PTHREAD_EXPLICIT_SCHED);
 
@@ -57,7 +73,8 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 
 	//pick a random priority for the scheduling algorithm chosen
        	param.sched_priority = sched_get_priority_min(schedule)+
-       		 prios[ndx]; // rand()%sched_get_priority_max(schedule);
+       		 prios[ndx % numThreads];
+	 // rand()%sched_get_priority_max(schedule);
 
 	ndx++;
 	pthread_attr_setschedparam(attr, &param);
@@ -66,6 +83,7 @@ int my_pthread_create(pthread_t *thread, pthread_attr_t *attr,
 
 
 void randPrio(){
+	if(!init) initialize(); 
 	//SCHED_OTHER should not choose a random priority
 	if(schedule == 0) return;
  
@@ -84,35 +102,16 @@ void randPrio(){
 pid_t orig_fork(); 
 
 pid_t my_fork(){
+	if(!init) initialize(); 
 	struct sched_param param;
-	static int ndx = 0;
-	static FILE *pFile = NULL;
-	static int numThreads = 0;
-	static int* prios= NULL;
-	static FILE *logFile = NULL;
 
-	if(logFile == NULL){
-		logFile = fopen("/tmp/threadLog.txt", "a");
-	}
-      	if(prios == NULL){
-		pFile = fopen("createPrios.txt","r");
-		fscanf(pFile, "%d\n",&numThreads);
-		prios = (int *)malloc(numThreads*sizeof(int));
-		int ndx2 = 0;
-		for(ndx2 = 0;ndx2 < numThreads;ndx2++){
-			fscanf(pFile,"%d\n",&(prios[ndx2]));
-		}
-		fclose(pFile);
-	}
 	ndx++;
-	if(ndx < numThreads){
-		//pick a random priority for the scheduling algorithm chosen
-		param.sched_priority = sched_get_priority_min(schedule)+
-                            prios[ndx]; // rand()%sched_get_priority_max(schedule);
+	//pick a random priority for the scheduling algorithm chosen
+	param.sched_priority = sched_get_priority_min(schedule)+
+		    prios[ndx % numThreads]; // rand()%sched_get_priority_max(schedule);
 
-		int rtn = sched_setscheduler(getpid(), schedule, &param); 
-		if(rtn != 0) printf("problems\n"); 
-	}
+	int rtn = sched_setscheduler(getpid(), schedule, &param); 
+	if(rtn != 0) fprintf(logFile, "error setting scheduler in my_fork\n"); 
 	return orig_fork();
 }
 
@@ -137,12 +136,12 @@ void trace_entry_func(char *func_name, char *desc_line, int num_func_args,
            syscall(SYS_gettid),func_name, num_func_args);
 
    if(func_arg1_type == 1) {
-      sprintf(tempstr, ", arg1: %d", (int)func_arg1);
+      snprintf(tempstr, 99, ", arg1: %p", func_arg1);
       strcat(line, tempstr);
    }
    sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   fprintf(logFile, line);
+   fprintf(logFile, "%s", line);
    fflush(logFile);
 }
 
@@ -157,12 +156,12 @@ void trace_exit_func(char *func_name, char *desc_line, void *ret_val,
 
    sprintf(line, "[TRACE_EXIT- thread:%d, func: %s",syscall(SYS_gettid), func_name);
    if(ret_val_type == 1) {
-      sprintf(tempstr, ", ret_val: %d", (int)ret_val);
+      sprintf(tempstr, ", ret_val: %p", ret_val);
       strcat(line, tempstr);
    }
-   sprintf(tempstr, ", %s, %s]\n", desc_line, get_formatted_time());
+   snprintf(tempstr, 99, ", %s, %s]\n", desc_line, get_formatted_time());
    strcat(line, tempstr);
-   fprintf(logFile, line);
+   fprintf(logFile, "%s", line);
    fflush(logFile);
 }
 
