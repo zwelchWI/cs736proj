@@ -36,8 +36,6 @@ execName   = CmdLineFind("-e","scheduleInst")
 joblabel     = CmdLineFind("-l","run")
 num        = int(CmdLineFind("-n",1000))
 timeOut    = int(CmdLineFind("-timeout",120))
-filename   = CmdLineFind("-f", "") 
-noInstrument = CmdDefined("--noinstrument")
 frame = 1
 
 
@@ -56,8 +54,7 @@ print(resDir+st)
 extraLine = ""
 extras = int( CmdLineFindIndex("-d") )
 if extras > 0:
-	if(noInstrument == False):
-		extraLine = extraLine + " -d "
+	extraLine = extraLine + " -d "
 	for task in sys.argv[extras+1:]:
 		extraLine = extraLine + str(task) + " "
 
@@ -73,19 +70,14 @@ while frame <= num:
 		padframe = "0" + padframe
 	if frame < 10:
 		padframe = "0" + padframe
-	if(noInstrument): 
-		command = extraLine
-		print("Not instrumenting\n")
-	else:
-		command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine#+ " &> stderrout.txt"
+	command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine#+ " &> stderrout.txt"
 	if frame == 1:
             sumFile.write("Execution results for "+command+"\n")
 	print(command)
 	stdouterr = open("stderrout.txt","w")
-	check_archive = False
+
 	try:
 		subprocess.check_call(command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
-		check_archive = True
 	except subprocess.CalledProcessError:
 		stdouterr.close()
 		print("rand seed "+str(frame)+" caused an error \n")
@@ -97,6 +89,7 @@ while frame <= num:
 		sumFile.write("rand seed "+str(frame)+"  timed out \n")
 		os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
 
+	os.system("mv stderrout.txt "+resDir+st+"/out."+str(frame)+".txt")
 	os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
 	print("DONE WITH " +str(frame))
 	sumFile.flush()
