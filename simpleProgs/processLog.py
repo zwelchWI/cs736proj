@@ -23,14 +23,18 @@ for line in lines:
 
 
     if threadId not in stack.keys():
-        stack[threadId] = []
+        stack[threadId] = [[],[]]
 
     if p[0] == "[TRACE_ENTRY-":
-        stack[threadId].append(p[3])
+        stack[threadId][0].append(p[3])
     else:
-        stack[threadId] = stack[threadId][:-1]
+        stack[threadId][0] = stack[threadId][0][:-1]
+        if len(stack[threadId][1]) == 3:
+            stack[threadId][1] = stack[threadId][1][1:]
+        stack[threadId][1].append(p[3])
 
-print stack
+for key,val in stack.iteritems():
+    print key+ " "+str(val)
 
 
 
