@@ -51,6 +51,8 @@ sumFile = open(resDir+st+"/summary.txt","w")
 
 
 print(resDir+st)
+sumFile.write(resDir+st+"\n")
+
 extraLine = ""
 extras = int( CmdLineFindIndex("-d") )
 if extras > 0:
@@ -58,9 +60,14 @@ if extras > 0:
 	for task in sys.argv[extras+1:]:
 		extraLine = extraLine + str(task) + " "
 
+#probably doesn't hurt to put this in your .bashrc either
+os.system("ulimit -c unlimited") 
 
-os.system("rm -rf /tmp/threadLog.txt")
+if(os.path.isfile("/tmp/threadLog.txt")):
+	os.system("rm -rf /tmp/threadLog.txt")
 
+if(os.path.isfile("rm /tmp/core")):
+	os.system("rm /tmp/core")
 
 while frame <= num:
 	padframe = str(frame)
@@ -74,24 +81,41 @@ while frame <= num:
 	if frame == 1:
             sumFile.write("Execution results for "+command+"\n")
 	print(command)
+	sumFile.write(command + "\n")
 	stdouterr = open("stderrout.txt","w")
 
 	try:
 		subprocess.check_call(command,shell=True,timeout=timeOut,stdout=stdouterr,stderr=stdouterr)
+		#always move the stdout to check later
+		os.system("mv stderrout.txt "+resDir+st+"/out."+str(frame)+".txt")
 	except subprocess.CalledProcessError:
 		stdouterr.close()
 		print("rand seed "+str(frame)+" caused an error \n")
 		sumFile.write("rand seed "+str(frame)+" caused an error \n")
+		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
+		if(os.path.isfile("stderrout.txt")):
+			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
+		else:
+			sumFile.write("rand seed " + str(frame) + " has no stderrout.txt\n")
 	except subprocess.TimeoutExpired:
 		stdouterr.close()
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
 		print("rand seed "+str(frame)+" timed out \n")
 		sumFile.write("rand seed "+str(frame)+"  timed out \n")
-		os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
-
-	os.system("mv stderrout.txt "+resDir+st+"/out."+str(frame)+".txt")
+		if(os.path.isfile("stderrout.txt")):
+			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
+		else:
+			sumFile.write("rand seed " + str(frame) + " has no stderrout.txt\n")
+	
+	#move the threadlog regardless
 	os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
-	print("DONE WITH " +str(frame))
+
+	#look for a core file and move
+	if(os.path.isfile("core")):
+		os.system("mv /tmp/core " + resDir + st + "/core." + str(frame))
+
+	print("DONE WITH " +str(frame) + "\n")
+	sumFile.write("DONE WITH " +str(frame) + "\n")
 	sumFile.flush()
 	frame += 1
 
