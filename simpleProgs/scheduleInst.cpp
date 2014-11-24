@@ -479,9 +479,14 @@ void initTracing(){
 
 
 int main(int argc, char *argv[]){
+    /*
+    //this might be causing crashes, go figure. 
+
     int major, minor, subminor; 
     bpatch.getBPatchVersion(major, minor, subminor); 
     printf("Version: Dyninst %d.%d.%d\n", major, minor, subminor); 
+    */
+
     // process control
     char* lib_path = NULL;
     lib_path = getenv("SCHEDULEINST_LIB"); 
