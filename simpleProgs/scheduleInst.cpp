@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string>
+#include <stdbool.h>
 #include "BPatch.h"
 #include "BPatch_addressSpace.h"
 #include "BPatch_snippet.h"
@@ -21,6 +22,7 @@ BPatch_function *traceExitFunc;
 BPatch_type *intType;
 
 vector<string> options;
+bool tracing = true;
 
 /* returns the first function to match a particular name */
 BPatch_function* getFunction(const char* name)
@@ -57,10 +59,12 @@ static void show_usage(string name)
               << "\t-d,--dyninst SOURCES\tSpecify what to give dyninst\n"
               << "\t-i,--instrument INSTS\tComma separated list of operations to instrument\n"
               << "\t-r --rNum INT\t random number seed\n"
+	      << "\t--noTrace\t disable function tracing\n"
     <<"\n\nSOURCES\n"
 	     <<"\tRAND    - random weights\n"
              <<"\tEQUAL   - equal weights\n"
              <<"\tREVERSE - Earlier threads have higher priority\n"
+             <<"\tNORMAL  - Uses linux default scheduler\n"
     <<"\n\nINSTS example: create,dMem,sync\n"
              <<"\tcreate  - instrument pthread_create\n"
              <<"\tsync    - instrument pthread syncronization\n"
@@ -180,6 +184,9 @@ int handleArgs(int argc,char **argv){
            }
         }else if((arg == "-r")||(arg == "--rNum")){
            srand(atoi(argv[++i]));
+        }else if(arg == "--noTrace"){
+           tracing = false;
+           cerr << "Tracing disabled." << endl; 
         }else {
             sources.push_back(argv[i]);
         
@@ -479,10 +486,8 @@ void initTracing(){
 
 
 int main(int argc, char *argv[]){
-    /*
-    //this might be causing crashes, go figure. 
 
-    int major, minor, subminor; 
+    /*int major, minor, subminor; 
     bpatch.getBPatchVersion(major, minor, subminor); 
     printf("Version: Dyninst %d.%d.%d\n", major, minor, subminor); 
     */
@@ -501,7 +506,7 @@ int main(int argc, char *argv[]){
     if(!appProc->loadLibrary(lib_path)){
 	fprintf(stderr, "Couldn't load tool library.\n"); 
     }
-    initTracing();
+    if(tracing) initTracing();
     instrument();
 
     // continue execution of the mutatee
@@ -515,11 +520,17 @@ int main(int argc, char *argv[]){
     while (!appProc->isTerminated()) {
         bpatch.waitForStatusChange();
     }
-    BPatch_exitType exit_type = appProc->terminationStatus();
-    if(exit_type == ExitedViaSignal){
-    	printf("Calling process done caught signal %d\n", appProc->getExitSignal()); 
+
+    int exit_val; 
+    if((exit_val = appProc->getExitSignal()) != -1){
+    	printf("Calling process done: caught signal %d\n", exit_val); 
     }
-    printf("Calling process done: exit code %d\n", appProc->getExitCode()); 
-    return 0;
+    else if((exit_val = appProc->getExitCode()) != 0){
+	printf("Calling process done: exit code %d\n", exit_val); 
+    }
+    else{
+	printf("Calling process done, exited normally\n"); 
+    }
+    return exit_val;
 }
 
