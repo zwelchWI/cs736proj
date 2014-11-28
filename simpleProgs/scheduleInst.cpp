@@ -448,7 +448,7 @@ void initTracing(){
 
    const BPatch_Vector<BPatch_module *> *mbuf = appImage->getModules();
 
-   for(unsigned n=2; n<3;n++){//(*mbuf).size(); n++) {
+   for(unsigned n=0;n<(*mbuf).size(); n++) {
       BPatch_module *mod = (*mbuf)[n];
       char modname[1000];
       mod->getName(modname, 999);
