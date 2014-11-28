@@ -330,9 +330,8 @@ bool should_instrument_module(char *mod_input) {
       char *cur_mod = excluded_modules[i];
       
       if(cur_mod == NULL) break;
-      if(strstr(modname,"athread")){}
-      else if(strstr(modname,"zip")){}
       else if(strstr(modname, cur_mod)){
+          printf("NOT INSTRUMENTING %s\n",cur_mod);
           return false;
       }
       i++;
