@@ -75,7 +75,7 @@ static void show_usage(string name)
 
 
 int schedule(string sched, int numThreads){
-    FILE *file = fopen("createPrios.txt","w");
+    FILE *file = fopen("/tmp/createPrios.txt","w");
     int ret = 0;
     if(sched == "RAND"){
 	fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
