@@ -77,7 +77,7 @@ static void show_usage(string name)
 
 
 int schedule(string sched, int numThreads){
-    FILE *file = fopen("createPrios.txt","w");
+    FILE *file = fopen("/tmp/createPrios.txt","w");
     int ret = 0;
     if(sched == "RAND"){
 	fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
@@ -327,17 +327,17 @@ void mystrlwr(char *str) {
 }
 
 bool should_instrument_module(char *mod_input) {
+   printf("is this breaking ??? %s\n",mod_input);
    int i=0;
-   char modname[100];
+   char modname[1000];
    strcpy(modname, mod_input);
    mystrlwr(modname);
    while(i<1000) {
       char *cur_mod = excluded_modules[i];
       
       if(cur_mod == NULL) break;
-      if(strstr(modname,"athread")){}
-      else if(strstr(modname,"zip")){}
       else if(strstr(modname, cur_mod)){
+          printf("NOT INSTRUMENTING %s\n",cur_mod);
           return false;
       }
       i++;
@@ -428,13 +428,16 @@ void instrument_exit(BPatch_function *func, char *funcname) {
 void instrument_funcs_in_module(BPatch_module *mod) {
    BPatch_Vector<BPatch_function *> *allprocs = mod->getProcedures();
 
-   char name[100];
+   char name[1000];
    unsigned int i=0;
    for( i=0; i<(*allprocs).size(); i++) {
       BPatch_function *func = (*allprocs)[i];
-      func->getName(name, 99);
-      if(strstr(name,"__"))continue;
+      func->getName(name, 999);
 
+      if(strstr(name,"Handle"))continue;
+      //if(strstr(name,"<"))continue;
+     if(strstr(name,"__"))continue;
+     // if(strstr(name,"::"))continue;
       cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
       instrument_entry(func, name);
       instrument_exit(func, name);
@@ -444,21 +447,29 @@ void instrument_funcs_in_module(BPatch_module *mod) {
 void initTracing(){
    traceEntryFunc = getFunction("trace_entry_func");
    traceExitFunc = getFunction("trace_exit_func");
-   intType = appImage->findType("int");
+
+//BROKEN
+
 
    const BPatch_Vector<BPatch_module *> *mbuf = appImage->getModules();
 
-   for(unsigned n=0; n<(*mbuf).size(); n++) {
+   for(unsigned n=0;n<(*mbuf).size(); n++) {
       BPatch_module *mod = (*mbuf)[n];
-      char modname[100];
-      mod->getName(modname, 99);
+      char modname[1000];
+      mod->getName(modname, 999);
       cout << "Program Module " << modname << " ------------------" << endl;
       if(should_instrument_module(modname)) {
          instrument_funcs_in_module(mod);
       }
    }
 
-   char name[100];
+//NOT BROKEN
+
+
+
+
+
+   char name[1000];
    unsigned int i=0;
 
     vector<string> syncFuncs;
@@ -474,7 +485,7 @@ void initTracing(){
     for (auto iter = syncFuncs.begin(); iter != syncFuncs.end(); ++iter) {
        // 4. insert increment snippet at function entry
        BPatch_function *syncFunc = getFunction((*iter).c_str());
-      syncFunc->getName(name, 99);
+      syncFunc->getName(name, 999);
       if(strstr(name,"__"))continue;
 
       cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
