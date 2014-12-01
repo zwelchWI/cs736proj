@@ -1,0 +1,223 @@
+\documentclass[10pt,]{article} % For LaTeX2e
+\usepackage{hyperref}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\bibliographystyle{unsrt}
+%\documentstyle[nips13submit_09,times,art10]{article} % For LaTeX 2.09
+
+
+\title{ScheduleInst: Using DynInst to Fuzz Test Multithreaded Program Schedules}
+\author{Robert Wespetal\\
+\and
+Zachary Welch}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+\setlength{\baselineskip}{18pt}
+
+\maketitle
+
+\begin{abstract}
+\setlength{\baselineskip}{18pt}
+
+ \end{abstract}
+
+
+\section{Introduction}
+\subsection{Testing Multithreaded programs is hard}
+
+Designing, coding, and debugging multithreaded programs present a number of unique challenges to developers.
+ Unlike singly threaded programs in which (barring some exception or interrupt) the order of operations is well defined, multithreaded applications have an additional degree of freedom in that the next instruction to run could be any of a set of instructions.
+The ability to run multiple operations in roughly any order is part of the appeal of parallelism, as orthogonal sets of work can be run simultaneously on different processors. 
+ However, It is rarely the case that a program will launch threads that never interact, and a significant part of the cognitive effort that goes into parallel programming is ensuring that these interactions are handled in a safe way.
+ Safe could mean restricting access to a data structure so only one thread may change it at a time, or it could mean that some sort of necessary order is enforced, such as allocating memory in one thread before it is used in another. 
+ When these cases are not handled correctly, the application can deadlock, crash, or corrupt valuable data.
+  And because no single thread is guaranteed to be the next to run, the program could be launched with identical  inputs and produce correct results. 
+ This non determinism makes multithreaded applications difficult to debug.
+
+\subsection{Boo Nondeterminism}
+
+The source of this non determinism is the OS scheduler, which must take into account a host of factors to decide which thread gets control of the CPU next and for how long.
+  In theory any interleaving of thread operations is possible, but we would argue that in practice the vast majority of runs have highly similar patterns of execution. 
+ Assume for instance that there is a deadlock bug in a code of software that is triggered in some subset of of thread interleavings. 
+If these interleavings are common, it is likely that the developers would have found the bug through normal testing.  
+Latent multi threading bugs then are likely in low-probability interleavings of threads, which is why they can be very difficult to find.   
+
+
+\subsection{Fuzzing has worked for other bugs, is cheap to run}
+
+There are numerous ways to tackle this problem of bugs “hiding” in low-probability interleavings.
+  To us the two most obvious possibilities are that you could run the same tests over and over again with the probabilistic argument that you will generate the bug in the limit or you could force every possible interleaving of execution.
+  The problem with both solutions is they do not scale; trying to debug something like Apache this way is functionally impossible. 
+ Other, more sophisticated techniques attempt to use a range of techniques, from machine learning to static and dynamic analysis, to intelligently guess which runs might lead to bugs. 
+ We found this route unappealing due to a high bar of domain knowledge necessary to use any single technique. 
+ Instead we were drawn to the relatively simple but effective technique of fuzz random testing.
+  “Fuzzing” a program involves passing programs randomly generated input until the program crashes. 
+ We embraced this method of testing in multithreaded programs; we believe that simply by randomly altering the priorities of threads during execution, we can stumble upon potential bugs more quickly than some brute force technique.
+  Combining this random reprioritization with logging information about the state of each thread during the error-inducing execution allows for identification of bugs.
+  In fact, using our tool’s logging mechanisms we were able to quickly identify bugs in large code bases we were unfamiliar with.  
+Our tool, scheduleInst, can attach to program binaries and dynamically instrument the program to employ random thread priorities during execution, as well as log details of these executions.
+ We have used scheduleInst to find potential bugs in pbzip2, ffmpeg, Apache, multithreaded wget, etc…  IN SECTION, WE...
+
+
+\section{Related Work}
+
+
+\subsection{Original Fuzzing}
+
+\subsection{Dyninst}
+
+\subsection{Maple}
+
+\subsection{Other Multithreaded Debuggers (Liblit, etc)}
+
+
+\section{Methods}
+
+
+\subsection{Default scheduler vs Real Time Threads}
+
+\subsection{Instrumenting methods}
+
+\subsection{logging}
+
+\subsection{Bugs we looking for}
+
+\subsection{Code coverage issue}
+
+
+\section{Experimental Setup}
+
+
+\subsection{Environments used}
+
+\subsection{Programs tested}
+	
+\subsection{How we decided deadlock/inifite loops}
+
+
+\section{Results}
+
+
+\subsection{Bugs found for each program}
+
+\subsection{Types of bugs}
+
+\subsection{Known or new bugs}
+
+
+\section{Discussion}
+
+
+\subsection{Why we might have found these bugs}
+
+\subsection{Why we might be missing some bugs that are there}
+
+\subsection{Heuristics can work great or crap}
+
+
+\section{Conclusions}
+
+
+\subsection{Reiterate major points}
+
+\subsection{talk about future avenues of investigation}
+
+
+\section{Thanks}
+
+
+	Bill
+
+	Bart?
+
+
+
+
+
+%\begin{figure}
+%\centering
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{tcpmlremote1.png}
+%\caption{Small Remote Host TCP Message Latency}
+%\label{mltcp1}
+%\end{subfigure}
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{tcpmlremote2.png}
+%\caption{Large Remote Host TCP Message Latency}
+%\label{mltcp2}
+%\end{subfigure}
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{udpmlremote.png}
+%\caption{UDP Remote Host Message Latency}
+%\label{mludp}
+%\end{subfigure}
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{pipeml.png}
+%\caption{Unix Pipe Message Latency}
+%\label{mlpipe}
+%\end{subfigure}
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{tcpmllocal.png}
+%\caption{TCP Local Host Message Latency}
+%\label{mltcplocal}
+%\end{subfigure}
+%\begin{subfigure}[b]{0.45\textwidth}
+%\centering
+%\includegraphics[width=\textwidth]{udpmllocal.png}
+%\caption{UDP Local Host Message Latency}
+%\label{mludplocal}
+%\end{subfigure}
+%\caption{Message Latency For TCP, UDP, and Unix Pipes }
+%\label{ml}
+%\end{figure}
+
+%Results for message latency are in Figure \ref{ml}. 
+
+%\begin{table}
+%\small
+%\centering
+%\begin{tabular}{ |r|r|r|r|r|r|r|r| }
+%\hline
+%        Size & Unix Pipe    &TCP local    & TCP remote &UDP local  &UDP remote &Local Loss&Remote Loss \\ \hline
+%4            &8,067,557     &21,359,907   &21,767,507 &2,252,982  &1,120,668  &0.01 \%&0.16  \%\\ \hline
+%16           &32,227,182    &75,367,763   &80,491,500 &8,914,558  &4,464,721  &0.02 \%&0.04 \%\\ \hline
+%64           &129,051,516   &202,562,046  &117,564,165&34,575,443 &17,898,288 &0.06 \%&0.06 \%\\ \hline
+%256          &50,1481,078   &366,743,555  &117,582,350&139,826,652&67,629,709 &0.07 \%& 0.00 \%\\ \hline
+%1024         &1,904,627,290 &532,086,557  &117,416,779&374,116,539&117,390,560&0.27 \%& 0.00 \%\\ \hline
+%4K           &5,895,543,588 &1,191,509,495&117,588,691&456,387,489&118,234,197&0.45 \%&0.14 \%\\ \hline
+%16K          &10,095,238,130&4,528,106,893&117,578,702&534,948,220&119,733,006&0.86 \%  &0.00 \%\\ \hline
+%64K          &11,693,449,919&6,566,081,382&117,571,137& N/A& N/A & N/A   &N/A\\ \hline
+%256K         &11,006,427,875&6,966,015,780&117,591,137&N/A & N/A & N/A   &N/A \\ \hline
+%512K         &10,833,855,459&7,282,783,813&117,582,986&N/A & N/A & N/A   &N/A \\ \hline
+%\end{tabular}
+%\caption{Throughput of IPC mechanisms (Byte/sec)}
+%\label{tp}
+%\end{table}
+%while the arithmetic mean was used to calculate average packet loss.  See Smith \cite{smith}
+
+
+\bibliography{paper}
+
+\end{document}
