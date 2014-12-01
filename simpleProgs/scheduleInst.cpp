@@ -22,9 +22,10 @@ BPatch_function *traceExitFunc;
 BPatch_type *intType;
 
 vector<string> options;
+vector<string> incs;
 bool tracing = true;
 bool detach = false; 
-
+bool inclusive = false;
 /* returns the first function to match a particular name */
 BPatch_function* getFunction(const char* name)
 {
@@ -62,6 +63,7 @@ static void show_usage(string name)
               << "\t-r --rNum INT\t random number seed\n"
 	      << "\t--noTrace\t disable function tracing\n"
 	      << "\t--detach\t detach after process creation\n"
+              << "\t-i,--inclusive INSTS\tComma separated list of modules to instrument\n"
     <<"\n\nSOURCES\n"
 	     <<"\tRAND    - random weights\n"
              <<"\tEQUAL   - equal weights\n"
@@ -192,6 +194,23 @@ int handleArgs(int argc,char **argv){
         }else if(arg == "--detach"){
            detach = true;
            cerr << "Detaching after process creation" << endl; 
+       }else if(arg == "--inclusive"){
+           inclusive = true;
+
+            if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+                string hold = argv[++i];
+                replace( hold.begin(), hold.end(), ',', ' ');
+                string buf = ""; // Have a buffer string
+                stringstream ss(hold); // Insert the string into a stream
+
+                while (ss >> buf){
+                    cout <<"Found option "<<buf<<endl;
+                    incs.push_back(buf);
+                }
+           }
+ 
+
+
         }else {
             sources.push_back(argv[i]);
         
@@ -327,7 +346,7 @@ void mystrlwr(char *str) {
 }
 
 bool should_instrument_module(char *mod_input) {
-   printf("is this breaking ??? %s\n",mod_input);
+
    int i=0;
    char modname[1000];
    strcpy(modname, mod_input);
@@ -342,6 +361,19 @@ bool should_instrument_module(char *mod_input) {
       }
       i++;
    }
+   if(inclusive){
+
+      for(int n = 0;n<incs.size();n++){
+
+	if(strstr(mod_input,incs[n].c_str()))
+		return true;
+      }
+      return false;
+
+   }
+
+
+
    return true;
 }
 
