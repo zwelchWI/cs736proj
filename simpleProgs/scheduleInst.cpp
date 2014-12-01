@@ -23,6 +23,7 @@ BPatch_type *intType;
 
 vector<string> options;
 bool tracing = true;
+bool detach = false; 
 
 /* returns the first function to match a particular name */
 BPatch_function* getFunction(const char* name)
@@ -60,6 +61,7 @@ static void show_usage(string name)
               << "\t-i,--instrument INSTS\tComma separated list of operations to instrument\n"
               << "\t-r --rNum INT\t random number seed\n"
 	      << "\t--noTrace\t disable function tracing\n"
+	      << "\t--detach\t detach after process creation\n"
     <<"\n\nSOURCES\n"
 	     <<"\tRAND    - random weights\n"
              <<"\tEQUAL   - equal weights\n"
@@ -75,7 +77,7 @@ static void show_usage(string name)
 
 
 int schedule(string sched, int numThreads){
-    FILE *file = fopen("createPrios.txt","w");
+    FILE *file = fopen("/tmp/createPrios.txt","w");
     int ret = 0;
     if(sched == "RAND"){
 	fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
@@ -186,7 +188,10 @@ int handleArgs(int argc,char **argv){
            srand(atoi(argv[++i]));
         }else if(arg == "--noTrace"){
            tracing = false;
-           cerr << "Tracing disabled." << endl; 
+           cerr << "Tracing disabled" << endl; 
+        }else if(arg == "--detach"){
+           detach = true;
+           cerr << "Detaching after process creation" << endl; 
         }else {
             sources.push_back(argv[i]);
         
@@ -527,6 +532,10 @@ int main(int argc, char *argv[]){
     if(!rtn){
 	printf("error starting proc\n"); 
 	exit(1); 
+    }
+    if(detach) {
+	appProc->detach(true); 
+	exit(0); 
     }
     // wait for mutatee to terminate 
     while (!appProc->isTerminated()) {

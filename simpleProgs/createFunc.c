@@ -31,7 +31,7 @@ void initialize(){
 		assert(logFile != NULL); 
 	}
       	if(prios == NULL){
-		pFile = fopen("createPrios.txt","r");
+		pFile = fopen("/tmp/createPrios.txt","r");
 		assert(pFile != NULL); 
 
 		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
