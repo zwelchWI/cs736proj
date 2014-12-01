@@ -442,6 +442,7 @@ void instrument_funcs_in_module(BPatch_module *mod) {
 void initTracing(){
    traceEntryFunc = getFunction("trace_entry_func");
    traceExitFunc = getFunction("trace_exit_func");
+    intType = appImage->findType("int");
 
 //BROKEN
 
