@@ -39,6 +39,7 @@ Zachary Welch}
 \setlength{\baselineskip}{18pt}
 ScheduleInst is a tool designed to Fuzz Test multithreaded programs.  SecheduleInst uses dynamic instrumentation to force applications to use real time threads.  By frequently altering real time thread priorities, ScheduleInst attempts to reveal concurrency bugs by generating unusual application executions. By randomly changing real time thread priorities at thread synchronization calls and with the help of dynamically instrumented logging techniques, ScheduleInst has been successful in finding real bugs in large, actively used programs. We test ScheduleInst with five popular open source applications and three simple proof of concept cases.      
 
+
  \end{abstract}
 
 
@@ -48,15 +49,19 @@ ScheduleInst is a tool designed to Fuzz Test multithreaded programs.  SecheduleI
 Designing, coding, and debugging multithreaded programs present a number of unique challenges to developers. Unlike singly threaded programs in which (barring some exception or interrupt) the order of operations is well defined, multithreaded applications have an additional degree of freedom in that the next instruction to run could be any of a set of instructions.  The ability to run multiple operations in roughly any order is part of the appeal of parallelism, as orthogonal sets of work can be run simultaneously on different processors.  However, It is rarely the case that a program will launch threads that never interact, and a significant part of the cognitive effort that goes into parallel programming is ensuring that these interactions are handled in a safe way. Safe could mean restricting access to a data structure so only one thread may change it at a time, or it could mean that some sort of necessary order is enforced, such as allocating memory in one thread before it is used in another.  When these cases are not handled correctly, the application can deadlock, crash, or corrupt valuable data.  And because no single thread is guaranteed to be the next to run, the program could be launched with identical  inputs and produce correct results.  This non determinism makes multithreaded applications difficult to debug.
 
 
+
 %\subsection{Boo Nondeterminism}
 
 	The source of this non determinism is the OS scheduler, which must take into account a host of factors to decide which thread gets control of the CPU next and for how long.  In theory any interleaving of thread operations is possible, but we would argue that in practice the vast majority of runs have highly similar patterns of execution.  Assume for instance that there is a deadlock bug in a code of software that is triggered in some subset of of thread interleavings. If these interleavings are common, it is likely that the developers would have found the bug through normal testing.  Latent multi threading bugs then are likely in low-probability interleavings of threads, which is why they can be very difficult to find.   
 
 
 
+
 %\subsection{Fuzzing has worked for other bugs, is cheap to run}
 	There are numerous ways to tackle this problem of bugs “hiding” in low-probability interleavings.  To us the two most obvious possibilities are that you could run the same tests over and over again with the probabilistic argument that you will generate the bug in the limit or you could force every possible interleaving of execution.  The problem with both solutions is they do not scale; trying to debug something like Apache this way is functionally impossible.  Other, more sophisticated techniques attempt to use a range of techniques, from machine learning to static and dynamic analysis, to intelligently guess which runs might lead to bugs.  We found this route unappealing due to a high bar of domain knowledge necessary to use any single technique.  Instead we were drawn to the relatively simple but effective technique of fuzz random testing.  “Fuzzing” a program involves passing programs randomly generated input until the program crashes.  We embraced this method of testing in multithreaded programs; we believe that simply by randomly altering the priorities of threads during execution, we can stumble upon potential bugs more quickly than some brute force technique.  Combining this random reprioritization with logging information about the state of each thread during the error-inducing execution allows for identification of bugs.  In fact, using our tool’s logging mechanisms we were able to quickly identify bugs in large code bases we were unfamiliar with.  
+
 	Our tool, ScheduleInst, can attach to program binaries and dynamically instrument the program to employ random thread priorities during execution, as well as log details of these executions.  We have used ScheduleInst to find potential bugs in pbzip2, ffmpeg, Apache, multithreaded wget, etc…  In Section 2, we discuss Related Work, in Section 3 we detail ScheduleInst and it’s approach to finding bugs.  In Section 4 we describe our experimental testing of a number of open source projects  
+
 
 \section{Related Work}
 
@@ -64,51 +69,52 @@ Designing, coding, and debugging multithreaded programs present a number of uniq
 \subsection{Original Fuzzing}
 
 
-Fuzz Random Testing originated as a method for testing the reliability of Unix utilities by passing random character strings as input.  Fuzzing asserts correct programs should be robust to this random input, and programs that crash or hang indefinitely under this stream of random data must then have bugs. Random input strings can then be generated until bugs are found or the developer is confident that their tool is robust to random inputs.  Fuzzing, like many bug finding tools, can only reveal bugs it finds; the lack of bugs from Fuzz runs does not guarantee any sort of correctness.  This relatively simple approach to debugging has been found to be surprisingly effective; the authors in the original study found bugs in between 25 and 33 percent of utilities tested across multiple versions of Unix.      
+Fuzz Random Testing originated as a method for testing the reliability of Unix utilities by passing random character strings as input ~cite{Fuzz}.  Fuzzing asserts correct programs should be robust to this random input, and programs that crash or hang indefinitely under this stream of random data must then have bugs. Random input strings can then be generated until bugs are found or the developer is confident that their tool is robust to random inputs.  Fuzzing, like many bug finding tools, can only reveal bugs it finds; the lack of bugs from Fuzz runs does not guarantee any sort of correctness.  This relatively simple approach to debugging has been found to be surprisingly effective; the authors in the original study found bugs in between 25 and 33 percent of utilities tested across multiple versions of Unix.      
+
 
 
 
 \subsection{Dyninst}
 
-Dyninst is a tool and API which allows users to instrument and patch binary code, which may or may not be running at the time it is instrumented.  Dyninst has been used to do a wide variety of tasks, from … to ….  Dyninst provides a major convenience in that large programs can be instrumented to perform difficult and potentially tedious tasks, for example reporting the number of calls to every function in an execution, quickly and without the need to alter the binary in question.  In Dyninst parlance, a mutator program is one which calls the Dyninst API to instrument some other program, the mutatee.   In about 100 lines of C++ code, a mutator which tracks the number of function calls can be written; any binary can then be used as a mutatee.  We use Dyninst primarily as a way of controlling and manipulating thread priorities in a uniform manner across test applications.  
+Dyninst is a tool and API which allows users to instrument and patch binary code, which may or may not be running at the time it is instrumented ~\cite{Dyninst1} ~\cite{Dyninst2}.   Dyninst provides a major convenience in that large programs can be instrumented to perform difficult and potentially tedious tasks, for example reporting the number of calls to every function in an execution, quickly and without the need to alter the binary in question.  In Dyninst parlance, a mutator program is one which calls the Dyninst API to instrument some other program, the mutatee.   In about 100 lines of C++ code, a mutator which tracks the number of function calls can be written; any binary can then be used as a mutatee.  We use Dyninst primarily as a way of controlling and manipulating thread priorities in a uniform manner across test applications.  
 
 
 
-\subsection{Multithreaded Debuggers}
 
-Using dynamic instrumentation to control or alter the execution of threads is not novel to ScheduleInst.  
+\subsection{Concurrency Debugers}
 
-Program testing and bug finding tools have long been a research area, and research in multithreaded testing and debugging techniques has been particularly active in recent years.  
-
+Program testing and bug finding tools have long been a research area, and research in multi threaded testing and debugging techniques has been particularly active in recent years. The popular debugging tool Valgrind has a tool named Helgrind ~\cite{Helgrind} which uses the Eraser Algorithm~\cite{Eraser} to find deadlocks and race conditions.   Some work like CFix ~\cite{Liblit} from UW-Madison even attempts to correct these concurrency bugs automatically upon finding them.  Using dynamic instrumentation to control or alter the execution of threads is not novel to ScheduleInst.  Maple ~\cite{Maple} uses PIN and dynamic analysis to force large applications into different execution interleavings.  The recent SCTBench tool ~\cite{Thomson} leverages Maple to generate completely random thread schedules in a tool very similar to ScheduleInst.  Microsoft Research’s Cuzz tool~\cite{Cuzz} has an almost identical motivation to ScheduleInst of using the concepts of Fuzz Random Testing to reveal concurrency bugs; in implementation, Cuzz takes a more statistically rigorous approach than ScheduleInst.  
 
 
 \section{Methods}
 
 	ScheduleInst is a tool designed to alter thread priorities in some user specified way, with the goal of moving away from the normal execution path.  It is our belief that testing these less probable interleavings of code that bugs will be revealed in a relatively short amount of time.  Threads are altered by using Dyninst to insert code snippets which alter the priority of a thread at a user-specified place. Dyninst is also used to provide sufficient logging to discover approximately where and how a bug manifested itself. ScheduleInst is primarily designed to find deadlocks and program crashes.  Other types of concurrency bugs like race conditions can be tested in some cases, for instance in pbzip2 we can check if any data was corrupted in the process of compressing the file, though our logging in that case would likely be unhelpful.  
 	ScheduleInst has a range of options which can affect how often thread priorities are altered.  Users can specify the sequence of priorities to pass to the mutatee to be randomly generated, all priorities set to equal, or users can provide their own sequence to allow arbitrary scheduling schemes to be emulated using ScheduleInst.  Users can also specify at what points in execution priorities can be changed; by default priorities are set when a thread is created and after all thread synchronization function calls.  The granularity of logging can also be altered by the user; by default we log entrances and exits of all user-defined functions (for implementation reasons we do not instrument signal handlers) as well Pthread functions.  We allow this granularity to be changed because we have found for some applications like ffmpeg the thousands of user-defined functions generates prohibitively large execution logs for no additional information.    
-	For the defualt randomly-generated thread priorities, scheduleInst allows users to specify a random seed. This feature allows users to easily recreate the environment which lead to a failed run.  Note that this is not the same thing as saying the failing runs are guaranteed to be reproducible; scheduleInst can only recreate the priorities of the threads, it cannot force the OS to yield the CPU at exactly the same point in the execution as it did in a failing run.  Additionally, we have found that in practice it is difficult to consistently  reproduce runs with identical priority sequences, and the rate seems to be dependent on the specifics of a given bug. In some cases the bug only revealed itself on 2\% of runs with a known buggy priority sequence.  In other cases the bug appears regularly.  Due to the fact that consistently generating the bug is not guaranteed,  the rationale for providing thorough logging information is that we want to make it as easy as possible to find the bug with a single run. 
+	For the default randomly-generated thread priorities, scheduleInst allows users to specify a random seed. This feature allows users to easily recreate the environment which lead to a failed run.  Note that this is not the same thing as saying the failing runs are guaranteed to be reproducible; scheduleInst can only recreate the priorities of the threads, it cannot force the OS to yield the CPU at exactly the same point in the execution as it did in a failing run.  Additionally, we have found that in practice it is difficult to consistently  reproduce runs with identical priority sequences, and the rate seems to be dependent on the specifics of a given bug. In some cases the bug only revealed itself on 2\% of runs with a known buggy priority sequence.  In other cases the bug appears regularly.  Due to the fact that consistently generating the bug is not guaranteed,  the rationale for providing thorough logging information is that we want to make it as easy as possible to find the bug with a single run. 
 
-
-\subsection{Default scheduler vs Real Time Threads}
+\subsection{Real Time Threads}
 
 ScheduleInst uses real time threads to exert some level of control over how threads run.  POSIX threads provide two real time options: SCHED\_FIFO and SCHED\_RR for First-In-First-Out and Round Robin scheduling respectively.  By default ScheduleInst uses SCHED\_RR, though in practice we found little difference between the two.  Real time schedulers run by scheduling higher priority threads first until they give up the CPU by going to sleep or ending.  In round robin the concept of time slices only exists for threads with equal priorities. The value of using real time threads for ScheduleInst is that thread priorities can be explicitly set at any point during program execution.  Unlike the default Linux scheduler (SCHED\_OTHER) which uses a multilevel feedback queue and internally alters the priority of threads based on how they use their time slices, realtime scheduling allows us to declare a certain thread “more important” to the operating system.  In real time threads, a lower priority only gets the CPU when all higher priority threads have been put to sleep.  This level of control is not perfect, but we feel using real time threads is a happy medium between doing nothing and writing our own kernel scheduler to suite our needs.  ScheduleInst forces all mutatee applications into the user-specified real time thread scheduling algorithm by using Dyninst to insert the necessary code.  By switching thread priorities often enough we hope to throw the application in question into atypical yet valid states in the hope of finding bugs.  Note that in many cases this use of real time threads and the instrumented logging will lead to decreased performance. 
 
 
 
-\subsection{Instrumenting methods}
+
+\subsection{Instrumenting Functions}
 
 At each instrumentation point, scheduleInst checks the current thread’s scheduler, sets it to the real time scheduler if necessary, and alters the thread’s real-time priority to some other (usually random) valid priority value.  If the pthread\_create function is one of the instrumentation points, the new thread will be created with the round robin scheduler and appropriate priority.  Initially scheduleInst only set thread priority as part of the create call, but after testing we found setting thread priorities at the time of thread creation and after each synchronization mechanism call (eg mutex lock) stresses the application more than simply setting priorities initially and allowing the program to run.  Intuitively, our goal in altering thread priorities after synchronization mechanisms is to encourage threads to give up the cpu immediately after grabbing a lock, which would allow other threads to run and potentially enter a deadlock state if one exists. 
 
 
 
-\subsection{logging}
+
+\subsection{Logging}
 
 Information about each function entry and exit is written to a single log file.  The name of the method in question, the thread executing it, and whether an entry or exit is occurring is logged.  For long running applications, this log can grow arbitrarily large, and we currently make no effort to remove old information.  The standard output and standard error of the application are also logged in a separate file for reference, and a core dump is saved if one is generated during the run.  Using the set of saved information and a set of scripts for some additional processing, we can provide useful information about the recent events in the source code leading up to a crash or deadlock.
 
 
+
 \subsection{Targeted Bugs}
 
-As previously stated, scheduleInst is primarily focussed on revealing bugs which lead to a premature end to execution.  This early stop can be due to a program crash (often a segmentation fault) or a deadlock/infinite loop where the program remains alive but makes no progress and hangs indefinitely.  
+As previously stated, scheduleInst is primarily focused on revealing bugs which lead to a premature end to execution.  This early stop can be due to a program crash (often a segmentation fault) or a deadlock/infinite loop where the program remains alive but makes no progress and hangs indefinitely.  
 
 We have designed ScheduleInst’s default behavior to specifically target these two types of errors.  In the simple deadlock example provided below, the system only deadlocks if both threads grab their first lock before either grabs their second one.  In the course of execution using the default Linux scheduler, the likelihood of this is relatively small.  Using ScheduleInst, however, the thread priority is changed immediately after a lock is grabbed.  This increases the possibility that the thread will have to give up it’s CPU before it has a chance to grab the second lock.  This gives the slower thread a better chance to catch up, and in general increases the likelihood of execution running into a deadlock.  
 
@@ -139,8 +145,7 @@ mutex_unlock(lock2);
 \end{lstlisting}
 \end{minipage}
 
-Likewise in the code below, there is the possibility for dereferencing a null pointer in threadSecond if it is run before the pointer is allocated in threadFirst.  Normally, if the thread responsible for threadFirst is created before the thread responsible for threadSecond, threadFirst will likely run before threadSecond and the code will run without crashing.  However, when using real time thread priorities, it is possible that a highly prioritized threadSecond could preempt a lowly prioritized threadFirst and cause the bug to reveal itself in a crash.  
-
+Likewise in the code below, there is the possibility for dereferencing a null pointer in threadSecond if it is run before the pointer is allocated in threadFirst.  Normally, if the thread responsible for threadFirst is created before the thread responsible for threadSecond, threadFirst will likely run before threadSecond and the code will run without crashing.  However, when using real time thread priorities, it is possible that a highly prioritized threadSecond could preempt a lowly prioritized threadFirst and cause the bug to reveal itself in a crash. 
 
 \begin{minipage}[b]{0.45\linewidth}
 \centering
@@ -151,9 +156,6 @@ int * myPtr = NULL;
 void threadFirst(){
 
 myPtr = malloc(sizeof(int));
-
-
-
 \end{lstlisting}
 \end{minipage}
 \hspace{0.5cm}
@@ -169,15 +171,10 @@ printf("%d\n"*myPtr);
 
 \end{lstlisting}
 \end{minipage}
-
-
-In both cases ScheduleInst increases the chance that the bug will occur in execution.  We may also encourage other types of bugs like race conditions and infinite loops, but the default choices made by ScheduleInst specifically target bugs which incorrectly use synchronization mechanisms. Our logging mechanisms are also targetted at making these bugs easy to locate once they occur.  ScheduleInst may make it more likely that a program corrupts it’s data, but currently ScheduleInst would have no way to locate this error in the source code unless it generated a crash.
+In both cases ScheduleInst increases the chance that the bug will occur in execution.  We may also encourage other types of bugs like race conditions and infinite loops, but the default choices made by ScheduleInst specifically target bugs which incorrectly use synchronization mechanisms. Our logging mechanisms are also targeted at making these bugs easy to locate once they occur.  ScheduleInst may make it more likely that a program corrupts it’s data, but currently ScheduleInst would have no way to locate this error in the source code unless it generated a crash.
 
 
 
-\subsection{Code coverage issue}
-
-	While ScheduleInst can be reasonably expected to increase the diversity of execution interleavings, it cannot alone robustly test a multithreaded program.  In a program with many potential branching paths of execution, ScheduleInst can only work in the one that has been chosen to run.   ScheduleInst is best suited for use in conjunction with some suite of stress tests that provide good code coverage.  This point may seem obvious, but we feel it needs stressing.  Several of the applications tested are monolithic in design, with a single application having many possible, mostly disjoint modes.  Having little to no experience with the use and operation of these applications made it difficult to provide adequate loadings of them for testing. 
 
 
 
@@ -188,9 +185,11 @@ To test ScheduleInst, we took a number of sample applications, instrumented them
 
 
 
-\subsection{Environments used}
+\subsection{Development Environment}
 
-Five department Virtual Machines were used to run all tests.  The VMs all used Ubuntu 12.04; similar results were found with some initial tests using ?????.  Dyninst 8.2.1 was used as our Dyninst installation.  All test applications were compiled from source with debugging information to allow Dyninst to correctly log application specific methods. A list of applications tested and their versions can be found in Table \ref{appsTest}.  These applications were chosen because they were popular Open Source applications known to make heavy use of PThreads.  Additionally we include our original test applications as a proof of concept to show that ScheduleInst finds bugs that exist but does not find bugs in a simple application with no concurrency bugs.  
+Five department Virtual Machines were used to run all tests.  The VMs used were Ubuntu 12.04; similar results were found with some initial tests using Fedora 20. Dyninst 8.2.1 was used as our Dyninst installation.  All test applications were compiled from source with debugging information to allow Dyninst to correctly log application specific methods, some applications had functions removed in order to generate useful logging files. The applications we chose to test are  A list of applications tested and their versions can be found in Table \ref{appsTest}.  These applications were chosen due to their popularity and their usage of PThreads.  Additionally we include our original test applications as a proof of concept that we used initially to test for correctness of ScheduleInst.
+
+
 
 
 \subsection{Application Loadings}
@@ -199,52 +198,63 @@ Five department Virtual Machines were used to run all tests.  The VMs all used U
 \begin{tabular}{ |c|c|c| }
 \hline
 Application & Version &Type \\ \hline \hline
-pbzip2 & Version & File Compression \\ \hline
-aget   & Version & File Downloading \\ \hline
-ffmpeg & Version & Video Compression \\ \hline
-mysql  & Version & Database\\ \hline
-apache & Version & Web Server\\ \hline
+pbzip2~\cite{pbzip2} & 1.1.8 & File Compression \\ \hline
+axel~\cite{axel}     & 2.4    & File Downloading \\ \hline
+ffmpeg~\cite{ffmpeg} & 2.4.3  & Video Compression \\ \hline
+mysql~\cite{mysql}  & 5.6.21 & Database\\ \hline
+apache~\cite{apache}& 2.2.29 & Web Server\\ \hline
 Toy ThreadSafe & N/A & Safely changes, prints global value \\ \hline
-Toy Deadlock & N/A & ThreadSafe with deadlock\\ \hline
-Toy Bad Mem Access &N/A& ThreadSafe with null pointer access \\ \hline
 \end{tabular}
 \caption{Applications Tested}
 \label{appsTest}
 \end{table}
 
-For each real application tested, we had to choose some way of loading the application.  The toy applications have no external inputs and thus do not have this problem.  For each application the choice of loading is an important factor in the type of bugs we might find.  We describe our application loadings below; in all cases we feel our loadings are representative of a fairly normal use case of the application.  
+
+
+
+
+For each real application tested, we had to choose some way of loading the application.  The toy application has no external inputs and thus do not have this problem.  For each application the choice of loading is an important factor in the type of bugs we might find.  We describe our application loadings below; we attempted to choose simple test inputs that utilize a major component of the application and have deterministic output. 
 
 \begin{itemize}
-  \item pbzip2: To test the parallel compressor, we generated a random 100 MB file using Linux's dd command.  pbzip2 would then attempt to zip this file using 100 threads specified on the command line. 
-  \item aget: Download large file (Boost source) from department web server. 
-  \item ffmpeg: BOBBY 
+  \item pbzip2: A 100MB file was generated from /dev/urandom. pbzip2 would then attempt to compress this file using 100 threads specified on the command line. 
+  \item axel: Download large file (Boost source) from department web server. 
+  \item ffmpeg: A short H.264 video trailer (approximately 400MB) was transcoded to a H.264 file of lower quality. We used 10 threads for transcoding, as the application maintainers recommended that no more than 16 threads be used. 
   \item mysql: Attach to server and run mysql provided test suite 
-  \item apache: BOBBY
+  \item apache: We used the latest version of the legacy branch of Apache in MPM worker mode which utilizes pthreads to service requests. We used HTTPerf to flood the server with requests for a 1K sample webpage.
 \end{itemize}
 
-It is likely that different bugs would be found with different loadings, and due to our lack of knowledge about the implementation details of these applications, it is possible some of these loadings are inappropriate to provide a good test of a system.  Regardless, none of our loadings are invalid inputs to their respective programs and all work successfully with no dynamic instrumentation, so we feel that while we may not be testing these tools as well as possible, we are finding bugs in them.  In addition to our logging and full ScheduleInst runs, we tested all applications extensively with no dynamic instrumentation and never hit a crash.
+Apache is a large application and is highly configurable, we attempted to keep the configuration as close to default as possible in order to test a typical setup of the server. The apache build contained only a handful of core modules essential to server functionality. We did change the default configuration supplied by apache to lower the logging level to informational to help with configuration and to potentially get useful error messages when testing. Furthermore, we used the MPM worker mode which uses pthreads to handle incoming requests compared to the prefork alternative for handling incoming HTTP requests. The parameters for the MPM worker module were tuned to ensure that the server would not bottleneck due to the number of threads created.
 
-\subsection{How we decided deadlock/inifite loops}
+Our testing methodology for Apache differed from other applications we tested which warrants further explanation. We chose to run smaller supervised tests instead of launching batch jobs to continuously run test cases against the server by instrumenting the server, launching a large performance test, and then analyzing the state of the server afterwards. HTTPerf was used to test apache by flooding the server with many concurrent requests and then determining the status of these requests. The two main parameters for this application are the number of requests to make per second and the total number of connections for the test. There are three primary results for each test, a success, no available file descriptors, or client timeout. We did not attempt to address the number of concurrent connections possible in our linux kernel to increase throughput, instead we reduced the requests per second until there was a small percentage of failures. Once the number of concurrent connections was chosen for a particular configuration of scheduleInst a performance benchmark was run at that rate for several minutes. We were able to determine if a deadlock occurs as Apache has many helper functions that are called while the server is at idle and is running normally. 
 
-One important design decision is how to decide when an application has deadlocked or infinite looped.  For program crashes, we simply check for the existance of a core file after every application has reached the end of it's execution. Deadlocks, however, will run indefinitely without intervention. We decided to add a timeout to our framework that would kill the running process after 4X the run time of a normal run had elapsed. So for instance a pbzip2 run on our 100 MB file took 30 seconds in all the uninstrumented runs we performed, hence we set a timeout of 120 seconds for our instrumented pbzip2.  Once the testing was complete and certain runs were flagged as potential deadlocks, it was a simple matter of manually inspecting the thread log and suspected location of the code to decide if a deadlock had indeed occured. In practice all of the runs flagged by ScheduleInst turned out to be deadlocks. 
+It is likely that different bugs would be found with input parameters, but our goal was not to comprehensively test applications. It is possible some of these loadings are inappropriate to provide a good test of a system.  Regardless, none of our loadings are invalid inputs to their respective programs and all work successfully with no dynamic instrumentation, so we feel that while we may not be testing these tools as well as possible, we are finding bugs in them.  
+
+\subsection{Deadlock Detection}
+
+One important design decision is how to decide when an application has deadlocked or infinite looped.  For program crashes, we simply check for the existence of a core file after every application has reached the end of its execution. Deadlocks, however, will run indefinitely without intervention. We decided to add a timeout to our framework that would kill the running process after 4X the run time of a normal run had elapsed. For example, a pbzip2 run on our 100 MB file took 30 seconds in all the uninstrumented runs we performed, hence we set a timeout of 120 seconds for our instrumented pbzip2.  Once the testing was complete and certain runs were flagged as potential deadlocks, it was a simple matter of manually inspecting the thread log and suspected location of the code to decide if a deadlock had indeed occurred. For server applications such as Apache, we manually monitored the thread log and waited for the application to stop appending to the log. In practice all of the runs flagged by ScheduleInst turned out to be deadlocks. 
+
 
 
 \section{Results}
 
 
 \subsection{Bugs found for each program}
+Results for each program can be found in Table \ref{bugsFound}.  As we mentioned earlier, all applications tested were also using the normal Linux scheduler in order to determine if our methodology does find bugs. For all applications tested no bugs were found for any run we performed with normal Linux scheduling. No bugs were found in either the logging runs or the complete ScheduleInst runs of Toy ThreadSafe which has no concurrency bugs.  
+
+pbzip2 found 1 bug when only logging the application and 3 bugs when manipulating thread priorities.  This is three times as many bugs found, though to be fair 3 bugs for 150 runs represents a bug-finding rate of only 2\%.  Axel only deadlocked one time with logging and 17 times with ScheduleInst, which means bugs were found in 11.3\% of runs.  For ffmpeg, we recorded 0 bugs after 300 runs while logging and 17 bugs in 300 runs for with ScheduleInst  or 5.66\% of the time.  MySQL discovered X bugs while logging and Y bugs when threads priorities were altered.  
+Table X shows the results we obtained for running Apache under scheduleInst with normal and randomly scheduled threads. Note that some of the rates for normal scheduling tests in the table are marked with a *, these results had an actual rate much closer to 1000 and were merely done in order to ensure that Apache did not crash due to instrumentation or logging. 
+Running Apache under randomly scheduled threads caused server failure for each test that we tried, except for one test case of very minimal load. After only a few thousand HTTP requests the server became unresponsive and stopped appending any function calls to the log, which suggested a deadlock. Initially the server had a nominal load, with some tests only having a 5-10\% CPU load, before one thread began to consume almost all of the CPU of the machine. We identified three possible sources of deadlock bugs through repeated tests. We were unable to get Apache to exhibit the behavior that we found with randomly scheduled threads, even when instrumented by our application with normal Linux scheduling parameters, with a much higher rate of requests than tests with randomly scheduled threads, and multiple trials without restarting the instrumented server. 
+ 
 \begin{table}
 \centering
 \begin{tabular}{ |c|c|c|c|c| }
 \hline
 \multirow{2}{*}{Application} & \multicolumn{2}{|c|}{Just Logging} & \multicolumn{2}{|c|}{ScheduleInst} \\ \cline{2-5}
 & \# Runs & \# Bugs Found & \# Runs & \# Bugs Found \\ \hline \hline
-Toy ThreadSafe & 100 &X& 100 &X \\ \hline
-Toy Deadlock & 100 &X& 100 &X \\ \hline
-Toy Bad Mem Access & 100 &X& 100 &X \\ \hline
-pbzip2 & 100 &X& 100 &X \\ \hline
-aget & 100 &X& 100 &X \\ \hline
-ffmpeg & 100 &X& 100 &X \\ \hline
+Toy ThreadSafe & 300 &0& 300 &0 \\ \hline
+pbzip2 & 150 &1& 150 &3 \\ \hline
+axel & 150 & 1 & 150 &17 \\ \hline
+ffmpeg & 300 & 0 & 300 & 17 \\ \hline
 mysql & 100 &X& 100 &X \\ \hline
 apache & 100 &X& 100 &X \\ \hline
 
@@ -252,21 +262,19 @@ apache & 100 &X& 100 &X \\ \hline
 \caption{Number of Potential Bugs Found}
 \label{bugsFound}
 \end{table}
-\subsection{Types of bugs}
 
+
+A distribution of found bugs by type can be found in Table ~\ref{typeBugs}.  The majority of bugs found were deadlocks.  The only bug found not to be a deadlock was one of the ffmpeg runs.
 \begin{table}
 \centering
 \begin{tabular}{ |c|c|c|c| }
 \hline
 Application & \# Total Bugs & \# Seg Faults & \# Hangs \\ \hline \hline
-pbzip2 & X & X & X  \\ \hline
-aget   & X & X & X \\ \hline
-ffmpeg & X & X & X \\ \hline
-mysql  & X & X & X \\ \hline
+pbzip2 & 3 & 0 & 3  \\ \hline
+axel   & 17 & 0 & 17 \\ \hline
+ffmpeg & 17 & 1 & 16 \\ \hline
 apache & X & X & X \\ \hline
-Toy ThreadSafe & X & X & X \\ \hline
-Toy Deadlock   & X & X & X \\ \hline
-Toy Bad Mem Access & X & X & X \\ \hline
+Toy ThreadSafe & 0 & 0 & 0 \\ \hline
 \end{tabular}
 \caption{Types of Bugs found}
 \label{typeBugs}
@@ -274,33 +282,52 @@ Toy Bad Mem Access & X & X & X \\ \hline
 
 
 
-\subsection{Known or new bugs}
 
 
 \section{Discussion}
 
 
+We feel the data clearly demonstrates ScheduleInst's ability to find concurrency bugs in a relitively small number of runs.  No application took more than a few hours to test, and ScheduleInst could easily be integrated into existing test servers. Specifically, Table ~\ref{typeBugs} shows ScheduleInst as we have configured it is particularly suited towards deadlocks, with all but one of the buggy runs being deadlocks. Since ScheduleInst by default changes thread priorities after syncronization calls, and since deadlocks are the result of improper use of syncronization mechanisms, the results in Table ~\ref{typeBugs} make intuitive sense. 
+
+The results in Table ~\ref{bugsFound} strongly imply that real time threads and their manipulation play a significant part in the number of bugs found.  In all tests of these applications 0 bugs were encountered when running them "out of the box" with no dynamic instrumentation of any kind.  Dynamically instrumenting Logging information as shown in Table ~\ref{bugsFound} yielded 1 buggy run for pbzip2, and ffmpeg.  Logging information does alter the execution state of the application,so it is not surprising that this additional change might yield a buggy run among many.  When Logging information and real time thread manipulation are used, ScheduleInst's default behavior, bugs are found at a much higher rate; for apache and axel, more than 10\% of runs end in bugs.  
+It is possible based on our testing output alone that all of these potential deadlock bugs are in fact simply extremely slow running instances of their applications. To convince ourselves that these potential deadlocks are in fact deadlocks, we inspected the thread logs and the source code.
+
+
+As stated earlier, we found three distinct bugs in Apache and were able to reproduce two of those bugs multiple times. Our tool only logs on the granularity of function entry and exit, but we were still able to get a general idea of what occurred. For the first bug, the thread that ended up consuming most of the CPU appeared to have accepted a connection (ap\_unixd\_accept) successfully, but did not return after pushing the new socket onto a queue (ap\_queue\_push). It entered and exited a pthread\_mutex\_lock and then did not call any functions after this. Other worker threads continued to run after this thread stopped, however the server came to a halt later when it attempted to acquire what is presumably a lock that the already stopped thread was holding. We found this error in multiple test runs with different logs before the server deadlocked, but the thread that ends up consuming the CPU had the same behavior which indicates that it is detrimental to the execution of the server. 
+
+Another apache bug that occurred multiple times happened near the function ap\_core\_input\_filter, which appears to be a main handler of the Apache network filter. The thread that ended up consuming most of the CPU called this function and did not return, unfortunately ap\_core\_input\_filter is a complex function and our logs had no information beyond entering the function. Other threads continued to run until pthread\_mutex\_lock was called by a thread which halted the server for one test case, another test case actually called ap\_queue\_info\_wait\_for\_idler which seems to be related to ap\_core\_input\_filter and needs to acquire a lock to continue. We suspect that this is a known bug as we did find bug reports indicating that this function may cause CPU consumption due to a circular linked list (see bugzilla 56034). We also found comments in ap\_queue\_info\_wait\_for\_idler that indicated that race problems had occurred in the function and various patches were attempted. 
+
+The final apache bug only occured one time, and seems to be caused by process management of the threads in Apache. The thread that ended up consuming the CPU called ap\_mpm\_podx\_check, which checks a pipe to see if a thread has been signaled to die, but did not return. It was unclear what affect this block had on the server as many more functions were logged after this thread blocked. However, it does seem likely that it is related to a key mechanism in the server due to the fact that requests were not serviced after the test. 
+
+
 \subsection{Why we might have found these bugs}
+
+As discussed earlier, changing priorities near synchronization points in execution may schedule the processes in a way that enhances race conditions. Furthermore, a real time threading priority model will run threads to completion or block (need more citations/discussion in intro about this from pthreads book?), which is different from the behavior of the default Linux scheduler that attempts to be a fair scheduler. 
+
+It is also important to mention that our application does a decent amount of dynamic instrumentation and writes a significant amount of logging to files. We attempted to account for this by running tests with the same instrumentation and logging, but with the normal scheduling algorithm, however further testing and analysis of our code is needed to ensure that unexpected behavior or bugs are only caused by changing the scheduling algorithms. 
 
 \subsection{Why we might be missing some bugs that are there}
 
+	While ScheduleInst can be reasonably expected to increase the diversity of execution interleavings, it cannot alone robustly test a multithreaded program.  In a program with many potential branching paths of execution, ScheduleInst can only work in the one that has been chosen to run.   ScheduleInst is best suited for use in conjunction with some suite of stress tests that provide good code coverage.  This point may seem obvious, but we feel it needs stressing.  Several of the applications tested are monolithic in design, with a single application having many possible, mostly disjoint modes.  Having little to no experience with the use and operation of these applications made it difficult to provide adequate loadings of them for testing. 
+
+
 \subsection{Heuristics can work great or crap}
+The number and type of bugs found by ScheduleInst are highly dependent on the application source code and the bug in it. For some applications we can only cause crashes some small percentage of our runs. For other applications the use of real time threads and the changing of priority cause the majority of runs to crash. We believe that any differences in the number of bugs found are due to the applications themselves and the degree to which their threads must interact; pbzip2 can segment it’s work and allow threads to work on separate chunks of the input data to be compressed with little necessary communication between threads.  Apache on the other hand requires a tighter coupling of threads to handle server requests.   
+
 
 
 \section{Conclusions}
 
 
 \subsection{Reiterate major points}
+ScheduleInst is a tool for revealing concurrency bugs. By dynamically instrumenting applications to use frequently changing real time thread priorities, we can encourage applications to run normally low probability thread interleavings. These alternate interleavings my reveal deadlock s or segfault on bugs that normally would not have been found. ScheduleInst also uses verbose logging of application executions to help developers quickly locate the issue once a bug has manifested. 
 
 \subsection{talk about future avenues of investigation}
 
 
 \section{Thanks}
 
-
-	Bill
-
-	Bart?
+We would like to thank Dr Miller and Bill Williams for helping us with our many many questions and for all the advice using Dyninst. 
 
 
 
