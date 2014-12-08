@@ -8,7 +8,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
-
+#include <errno.h>
 //headers for dyninst 
 int orig_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                           void *(*start_routine) (void *), void *arg);
@@ -28,11 +28,17 @@ void initialize(){
 	//this function is called
 	if(logFile == NULL){
 		logFile = fopen("/tmp/threadLog.txt", "a");
-		assert(logFile != NULL); 
+		if(logFile == NULL){
+			fprintf(logFile, "Unable to open threadlog: %s\n", strerror(errno));
+			assert(logFile != NULL); 
+		}
 	}
       	if(prios == NULL){
 		pFile = fopen("/tmp/createPrios.txt","r");
-		assert(pFile != NULL); 
+		if(logFile == NULL){
+			fprintf(logFile, "Unable to open createPrios: %s\n", strerror(errno));
+			assert(pFile != NULL); 
+		}
 
 		fscanf(pFile, "%d,%d\n",&schedule, &numThreads);
 		assert(schedule >= 0 && numThreads > 0); 
