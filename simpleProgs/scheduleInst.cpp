@@ -470,6 +470,10 @@ void instrument_funcs_in_module(BPatch_module *mod) {
       //if(strstr(name,"<"))continue;
      if(strstr(name,"__"))continue;
      // if(strstr(name,"::"))continue;
+
+     //ffmpeg hack
+     if(strstr(name,"ff_thread_await_progress")) continue;
+     if(strstr(name,"ff_h263_encode_motion")) continue;  
       cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
       instrument_entry(func, name);
       instrument_exit(func, name);

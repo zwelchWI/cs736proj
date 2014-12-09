@@ -36,6 +36,7 @@ execName   = CmdLineFind("-e","scheduleInst")
 joblabel     = CmdLineFind("-l","run")
 num        = int(CmdLineFind("-n",1000))
 timeOut    = int(CmdLineFind("-timeout",120))
+inclusive  = CmdLineFind("--inclusive","")
 frame = 1
 
 
@@ -77,7 +78,10 @@ while frame <= num:
 		padframe = "0" + padframe
 	if frame < 10:
 		padframe = "0" + padframe
-	command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine#+ " &> stderrout.txt"
+	if inclusive: 
+		command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" --inclusive " + inclusive + " " + extraLine
+	else:	
+		command =executable +"/"+execName +" -r "+str(frame) +  " -t "+scheds+ " -s "+str(numThreads)+ " -i "+insts+" " + extraLine
 	if frame == 1:
             sumFile.write("Execution results for "+command+"\n")
 	print(command)
@@ -93,6 +97,7 @@ while frame <= num:
 		print("rand seed "+str(frame)+" caused an error \n")
 		sumFile.write("rand seed "+str(frame)+" caused an error \n")
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
+		os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
 		if(os.path.isfile("stderrout.txt")):
 			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
 		else:
@@ -102,13 +107,16 @@ while frame <= num:
 		os.system("killall -9 scheduleInst "+sys.argv[extras+1].split("/")[-1])
 		print("rand seed "+str(frame)+" timed out \n")
 		sumFile.write("rand seed "+str(frame)+"  timed out \n")
+		os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
 		if(os.path.isfile("stderrout.txt")):
 			os.system("mv stderrout.txt "+resDir+st+"/stderrout."+str(frame)+".txt")
 		else:
 			sumFile.write("rand seed " + str(frame) + " has no stderrout.txt\n")
 	
 	#move the threadlog regardless
-	os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
+	#os.system("mv /tmp/threadLog.txt "+resDir+st+"/threadLog"+str(frame)+".txt")
+	#changed this due to ffmpeg, only move if the test failed and remove. 
+	os.system("rm /tmp/threadLog.txt"); 
 
 	#look for a core file and move
 	if(os.path.isfile("core")):
