@@ -39,17 +39,12 @@ timeOut    = int(CmdLineFind("-timeout",120))
 inclusive  = CmdLineFind("--inclusive","")
 frame = 1
 
-
-
-
-
 resDir = "/tmp/"  + joblabel
 ts = time.time()
 st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d.%H:%M:%S')
 os.mkdir(resDir+st)
 
 sumFile = open(resDir+st+"/summary.txt","w")
-
 
 print(resDir+st)
 sumFile.write(resDir+st+"\n")

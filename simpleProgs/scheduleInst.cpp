@@ -1,3 +1,5 @@
+//Portions of the DyninstAPI example code were used in this application
+
 #include <stdio.h>
 #include <string>
 #include <stdbool.h>
@@ -6,14 +8,11 @@
 #include "BPatch_snippet.h"
 #include "BPatch_point.h"
 #include "BPatch_function.h"
+#include "BPatch_process.h"
 using namespace Dyninst;
 using namespace std;
 using namespace SymtabAPI;
-#include "BPatch_process.h"
-/*
-enum BPatch_exitType { NoExit, ExitedNormally,
-	ExitedViaSignal };
-*/
+
 BPatch bpatch;
 BPatch_image *appImage = NULL;
 BPatch_process *appProc = NULL;
@@ -26,6 +25,7 @@ vector<string> incs;
 bool tracing = true;
 bool detach = false; 
 bool inclusive = false;
+
 /* returns the first function to match a particular name */
 BPatch_function* getFunction(const char* name)
 {
@@ -80,6 +80,7 @@ static void show_usage(string name)
 
 int schedule(string sched, int numThreads){
     FILE *file = fopen("/tmp/createPrios.txt","w");
+    assert(file != NULL); 
     int ret = 0;
     if(sched == "RAND"){
 	fprintf(file,"%d,%d\n",SCHED_RR, numThreads);
@@ -169,8 +170,6 @@ int handleArgs(int argc,char **argv){
             appProc = startMutateeProcess(argc-i,argv+i);
             return 0;
 	}else if ((arg == "-a") || (arg == "--attach")) {
-		//don't need path as linux does this I guess..
-		//char *path = argv[++i]; 
 		int pid = atoi(argv[++i]);
 		appProc = bpatch.processAttach(NULL, pid);
 		return 0;
@@ -208,8 +207,6 @@ int handleArgs(int argc,char **argv){
                     incs.push_back(buf);
                 }
            }
- 
-
 
         }else {
             sources.push_back(argv[i]);
@@ -230,7 +227,6 @@ void createInst(){
     if(!newCreate)
         printf("ACK\n");
 
-    //had to load the file again, no idea why
     char* createFile; 
     createFile = getenv("SCHEDULEINST_LIB"); 
 
@@ -261,7 +257,6 @@ void forkInst(){
     if(!newCreate)
         printf("ACK\n");
 
-    //had to load the file again, no idea why
     string createFile = "libcreateFunc.so";
     Symtab *obj = NULL;
     vector<Symbol *> syms;
@@ -298,11 +293,6 @@ void syncInst(){
 
 }
 
-
-void memInst(){
-
-}
-
 void instrument(){
      for (vector<string>::iterator it = options.begin();it != options.end(); it++){
          cout << *it<<endl;
@@ -311,9 +301,6 @@ void instrument(){
 	 }
          else if(*it == "sync"){
              syncInst();
-         }
-         else if(*it == "dMem"){
-	     memInst();
          }
 	 else if(*it == "fork"){
 	     forkInst(); 
@@ -371,9 +358,6 @@ bool should_instrument_module(char *mod_input) {
       return false;
 
    }
-
-
-
    return true;
 }
 
@@ -466,14 +450,13 @@ void instrument_funcs_in_module(BPatch_module *mod) {
       BPatch_function *func = (*allprocs)[i];
       func->getName(name, 999);
 
-      if(strstr(name,"Handle"))continue;
-      //if(strstr(name,"<"))continue;
+     if(strstr(name,"Handle"))continue;
      if(strstr(name,"__"))continue;
-     // if(strstr(name,"::"))continue;
 
-     //ffmpeg hack
+     //for ffmpeg
      if(strstr(name,"ff_thread_await_progress")) continue;
      if(strstr(name,"ff_h263_encode_motion")) continue;  
+
       cout << "  instrumenting function #" << i+1 << ":  " << name << endl;
       instrument_entry(func, name);
       instrument_exit(func, name);
@@ -483,10 +466,7 @@ void instrument_funcs_in_module(BPatch_module *mod) {
 void initTracing(){
    traceEntryFunc = getFunction("trace_entry_func");
    traceExitFunc = getFunction("trace_exit_func");
-    intType = appImage->findType("int");
-
-//BROKEN
-
+   intType = appImage->findType("int");
 
    const BPatch_Vector<BPatch_module *> *mbuf = appImage->getModules();
 
@@ -499,12 +479,6 @@ void initTracing(){
          instrument_funcs_in_module(mod);
       }
    }
-
-//NOT BROKEN
-
-
-
-
 
    char name[1000];
    unsigned int i=0;
@@ -530,8 +504,6 @@ void initTracing(){
       instrument_entry(syncFunc, name);
       instrument_exit(syncFunc, name);
    }
-
-
 }
 
 
@@ -539,11 +511,6 @@ void initTracing(){
 
 
 int main(int argc, char *argv[]){
-
-    /*int major, minor, subminor; 
-    bpatch.getBPatchVersion(major, minor, subminor); 
-    printf("Version: Dyninst %d.%d.%d\n", major, minor, subminor); 
-    */
 
     // process control
     char* lib_path = NULL;

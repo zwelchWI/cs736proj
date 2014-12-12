@@ -8,20 +8,12 @@ File = open(sys.argv[1],"r")
 lines = File.readlines()
 File.close()
 
-
-
-
-
 for line in lines:
     p = line.split()
     if len(p) == 0:
         continue
     if p[0] == 'about':
         continue
- 
-
-
-
     if p[0] == "[TRACE_ENTRY-":
         threadId = p[1].split(':')[1]
 
@@ -45,7 +37,4 @@ for line in lines:
 
 for key,val in stack.iteritems():
     print key+ " "+str(val)
-
-
-
 

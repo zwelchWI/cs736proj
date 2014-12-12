@@ -57,14 +57,6 @@ void *func1(void *arg)
 
 int main(int argc, char* argv[]) {
 
-/*	if(pthread_mutex_init(&lock, NULL) != 0){
-		perror("mutex_init: ");
-		return 1;
-	}
-*/
-
-
-
 	pthread_t threads[NUMTHREADS]; 
 	pthread_attr_t attr[NUMTHREADS];
 	int i;
@@ -75,28 +67,6 @@ int main(int argc, char* argv[]) {
 			return 1;
 		}
 	}
-	//this must be called otherwise policy and priority are wrong
-	/*ret = pthread_attr_setinheritsched(&attr,PTHREAD_EXPLICIT_SCHED);
-                if(ret < 0){
-                        printf("RETURN VALUE FAIL\n");
-                        return 0;
-                }
-	*/
-	/*if(argc>2){
-		flag = 1;
-		printf("Using alternate scheduler, pid of parent: %d\n", getpid());	
-		ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
-		if(ret < 0){
-			printf("RETURN VALUE FAIL\n");
-			return 0;	
-		}
-		fifo_param.sched_priority =sched_get_priority_min(SCHED_RR);	
-		ret = pthread_attr_setschedparam(&attr, &fifo_param);
-		if(ret<0){
-			printf("FAILEDED\n");
-			return 0;
-		}
-	}*/
 
 	/* Start up threads */
 	for(i = 0; i < NUMTHREADS; i++){
@@ -108,27 +78,6 @@ int main(int argc, char* argv[]) {
 			return 1;
 		}
 	}
-	/*if(argc>2){
-                ret = pthread_attr_setschedpolicy(&attr2, SCHED_RR);
-                if(ret < 0){
-                        printf("RETURN VALUE FAIL\n");
-                        return 0;
-                }
-		ret = fifo_param2.sched_priority =sched_get_priority_max(SCHED_RR);	
-                if(ret<0){
-                        printf("FAILEDED\n");
-                        return 0;
-                }
-
-  		ret = pthread_attr_setschedparam(&attr2, &fifo_param2);
-
-       		if(ret<0){
-                	printf("FAILEDED\n");
-                	return 0;
-        	}
-
-	}*/
-	/* Synchronize the completion of each thread. */
 	printf("Done creating threads.\n");
 	for(i = 0; i < NUMTHREADS; i++){
 		int rtn = pthread_join(threads[i], NULL);
@@ -136,6 +85,5 @@ int main(int argc, char* argv[]) {
 			perror("pthread_join: ");
 		}
 	}
-//	pthread_mutex_destroy(&lock); 
 	return 0;
 }

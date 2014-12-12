@@ -11,6 +11,7 @@ int a = 0;
 sem_t  S;
 sem_t   Q;
 int flag = 0;
+
 //taken from pthreads man page, prints out the current priority and
 //the policy
 void print_sched_attr(){
@@ -103,10 +104,9 @@ int main(int argc, char* argv[]) {
 	if(argc>2){
 		flag = 1;
 		printf("Using alternate scheduler, pid of parent: %d\n", getpid());	
-		  /* initialize random seed: */
-		  srand (atoi(argv[1]));
+	        /* initialize random seed: */
+	        srand (atoi(argv[1]));
 
-		printf("HERE\n");
 		ret = pthread_attr_setschedpolicy(&attr, SCHED_RR);
 		if(ret < 0){
 			printf("RETURN VALUE FAIL\n");
@@ -117,13 +117,13 @@ int main(int argc, char* argv[]) {
 
 	ret = pthread_attr_setschedparam(&attr, &fifo_param);
        	if(ret<0){
-                printf("FAILEDED\n");
+                printf("FAILED\n");
                 return 0;
         }
 /* Start up thread */
 	 ret = pthread_create(&threads[0], &attr, hello1, (void *)(1));
 	if(ret<0){
-		printf("FAILEDED\n");
+		printf("FAILED\n");
 		return 0;
 	}
 	if(argc>2){
@@ -134,21 +134,21 @@ int main(int argc, char* argv[]) {
                 }
 		ret = fifo_param2.sched_priority =sched_get_priority_max(SCHED_RR);	
                 if(ret<0){
-                        printf("FAILEDED\n");
+                        printf("FAILED\n");
                         return 0;
                 }
 
   		ret = pthread_attr_setschedparam(&attr2, &fifo_param2);
 
        		if(ret<0){
-                	printf("FAILEDED\n");
+                	printf("FAILED\n");
                 	return 0;
         	}
 
 	}
 	ret = pthread_create(&threads[1], &attr2, hello2, (void *)(1));
 	if(ret<0){
-                printf("FAILEDED\n");
+                printf("FAILED\n");
                 return 0;
         }
 /* Synchronize the completion of each thread. */
